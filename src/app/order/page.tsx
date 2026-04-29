@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, PaymentMethod } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, CheckCircle2, MapPin, Phone, Calendar, Info, ArrowLeft, ArrowRight, Minus, Plus, Trash2, Package } from "lucide-react";
+import { ShoppingCart, CheckCircle2, MapPin, Phone, Calendar, Info, ArrowLeft, ArrowRight, Minus, Plus, Trash2, Package, IndianRupee } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -38,6 +38,7 @@ export default function OrderPage() {
   const [instructions, setInstructions] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Cash on Delivery");
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "user")) {
@@ -99,6 +100,7 @@ export default function OrderPage() {
       phone, 
       date, 
       instructions, 
+      paymentMethod,
       total 
     });
     
@@ -135,9 +137,11 @@ export default function OrderPage() {
             <div className="mt-4 pt-4 border-t border-slate-50">
                <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">
                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                 Payment Pending
+                  {paymentMethod === "Online" ? "Payment Initiated" : "Payment Pending"}
                </div>
-               <p className="text-[11px] text-slate-400 italic">Please keep the amount ready for Cash on Delivery. Our agent will verify the quality before payment.</p>
+                <p className="text-[11px] text-slate-400 italic">
+                  {paymentMethod === "Online" ? "Our agent will provide a QR code at delivery for secure payment." : "Please keep the amount ready for Cash on Delivery. Our agent will verify the quality before payment."}
+                </p>
             </div>
           </div>
 
@@ -170,7 +174,7 @@ export default function OrderPage() {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-12 gap-8">
+          <form onSubmit={handleSubmit} className="grid lg:grid-cols-12 gap-8">
             <div className="lg:col-span-7 space-y-6">
               <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400 ml-1">Available Products</h3>
               <div className="grid gap-4">
@@ -187,12 +191,13 @@ export default function OrderPage() {
                     <div className="flex items-center gap-3">
                       {cart[product.id] ? (
                         <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
-                          <button onClick={() => updateCart(product.id, -1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white transition-colors text-slate-400"><Minus size={14} /></button>
+                          <button type="button" onClick={() => updateCart(product.id, -1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white transition-colors text-slate-400"><Minus size={14} /></button>
                           <span className="w-6 text-center font-bold text-slate-900">{cart[product.id]}</span>
-                          <button onClick={() => updateCart(product.id, 1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white transition-colors text-slate-400"><Plus size={14} /></button>
+                          <button type="button" onClick={() => updateCart(product.id, 1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white transition-colors text-slate-400"><Plus size={14} /></button>
                         </div>
                       ) : (
                         <button 
+                          type="button"
                           onClick={() => updateCart(product.id, 1)}
                           className="btn-primary py-2.5 px-5 text-xs font-bold"
                         >
@@ -234,6 +239,32 @@ export default function OrderPage() {
                     <label className="label">Special Instructions (Optional)</label>
                     <textarea rows={2} value={instructions} onChange={(e) => setInstructions(e.target.value)} className="input-field resize-none" placeholder="E.g. Leave at gate..." />
                   </div>
+
+                  <div>
+                    <label className="label">Payment Method</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        type="button"
+                        onClick={() => setPaymentMethod("Cash on Delivery")}
+                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${paymentMethod === "Cash on Delivery" ? "border-blue-500 bg-blue-50/50" : "border-slate-100 hover:border-blue-200"}`}
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === "Cash on Delivery" ? "bg-blue-500 text-white" : "bg-slate-50 text-slate-400"}`}>
+                          <Package size={20} />
+                        </div>
+                        <span className={`text-xs font-bold ${paymentMethod === "Cash on Delivery" ? "text-blue-700" : "text-slate-500"}`}>Cash on Delivery</span>
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setPaymentMethod("Online")}
+                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${paymentMethod === "Online" ? "border-blue-500 bg-blue-50/50" : "border-slate-100 hover:border-blue-200"}`}
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === "Online" ? "bg-blue-500 text-white" : "bg-slate-50 text-slate-400"}`}>
+                          <IndianRupee size={20} />
+                        </div>
+                        <span className={`text-xs font-bold ${paymentMethod === "Online" ? "text-blue-700" : "text-slate-500"}`}>Online Payment</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -269,7 +300,7 @@ export default function OrderPage() {
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="text-sm font-bold text-slate-900">₹{item.price * item.quantity}</div>
-                            <button onClick={() => updateCart(item.id, -item.quantity)} className="text-slate-300 hover:text-red-500 transition-colors">
+                            <button type="button" onClick={() => updateCart(item.id, -item.quantity)} className="text-slate-300 hover:text-red-500 transition-colors">
                               <Trash2 size={14} />
                             </button>
                           </div>
@@ -303,7 +334,7 @@ export default function OrderPage() {
                 </div>
 
                 <button 
-                  onClick={handleSubmit}
+                  type="submit"
                   disabled={cartItems.length === 0}
                   className="btn-primary w-full py-4 mt-8 text-base font-bold shadow-lg shadow-blue-100 disabled:opacity-50 disabled:shadow-none"
                 >
@@ -311,7 +342,7 @@ export default function OrderPage() {
                 </button>
               </div>
             </div>
-          </div>
+          </form>
         </motion.div>
       </div>
     </div>

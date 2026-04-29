@@ -24,6 +24,9 @@ export interface OrderItem {
   price: number;
 }
 
+export type PaymentStatus = "Paid" | "Unpaid";
+export type PaymentMethod = "Online" | "Cash on Delivery";
+
 export interface Order {
   id: string;
   userEmail: string;
@@ -36,6 +39,8 @@ export interface Order {
   date: string;
   instructions?: string;
   status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
   total: number;
   cansReturned?: number;
   createdAt: string;
@@ -55,13 +60,14 @@ interface AuthContextType {
   user: User | null;
   orders: Order[];
   allOrders: Order[];
+  allUsers: User[];
   notifications: AppNotification[];
   unreadCount: number;
   signin: (email: string, password: string) => { success: boolean; message: string };
   signup: (userData: Omit<User, "id" | "role">, password: string) => { success: boolean; message: string };
   signout: () => void;
-  placeOrder: (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt">) => void;
-  createManualOrder: (orderData: Omit<Order, "id" | "status" | "createdAt">) => void;
+  placeOrder: (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }) => void;
+  createManualOrder: (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => void;
   updateOrder: (orderId: string, orderData: Partial<Order>) => void;
   deleteOrder: (orderId: string) => void;
   updateUserProfile: (userData: Partial<User>) => void;
@@ -212,16 +218,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.push("/");
   };
 
-  const placeOrder = (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt">) => {
+  const placeOrder = (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }) => {
     if (!user) return;
 
     const newOrder: Order = {
       ...orderData,
+      paymentStatus: "Unpaid",
+      paymentMethod: orderData.paymentMethod || "Cash on Delivery",
+      cansReturned: 0,
       id: `ORD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       userEmail: user.email,
       userName: user.name,
       status: "Pending",
-      cansReturned: 0,
       createdAt: new Date().toISOString(),
     };
 
@@ -258,12 +266,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const createManualOrder = (orderData: Omit<Order, "id" | "status" | "createdAt">) => {
+  const createManualOrder = (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => {
     const newOrder: Order = {
       ...orderData,
+      paymentStatus: orderData.paymentStatus || "Unpaid",
+      paymentMethod: orderData.paymentMethod || "Cash on Delivery",
+      cansReturned: orderData.cansReturned || 0,
       id: `MAN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       status: "Confirmed", // Manual orders are usually confirmed immediately
-      cansReturned: 0,
       createdAt: new Date().toISOString(),
     };
 
@@ -368,6 +378,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         orders: userOrders,
         allOrders: orders,
+        allUsers: Object.values(allUsers).map(u => u.user),
         notifications,
         unreadCount,
         signin,

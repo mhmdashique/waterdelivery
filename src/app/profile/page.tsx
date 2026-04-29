@@ -157,7 +157,15 @@ export default function ProfilePage() {
                       <div>
                         <div className="text-[10px] font-mono text-slate-400 mb-0.5 tracking-wider">{order.id}</div>
                         <div className="font-bold text-slate-900 flex items-center gap-2">
-                           {order.cans} Items <span className="text-blue-600">₹{order.total}</span>
+                           {order.items?.length || 1} Items <span className="text-blue-600">₹{order.total}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${order.paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-amber-50 text-amber-600 border border-amber-100"}`}>
+                            {order.paymentStatus}
+                          </span>
+                          <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                            <ShoppingBag size={10} /> {order.paymentMethod}
+                          </span>
                         </div>
                       </div>
                     </div>

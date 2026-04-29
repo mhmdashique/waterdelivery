@@ -10,15 +10,15 @@ import {
   User as UserIcon, LayoutDashboard, LogOut, X, 
   ArrowRight, IndianRupee, Bell, ShieldCheck, Edit2
 } from "lucide-react";
-import { Order, OrderStatus } from "@/lib/auth-context";
+import { Order, OrderStatus, PaymentStatus, PaymentMethod } from "@/lib/auth-context";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 export default function AdminDashboard() {
-  const { user, allOrders, updateOrderStatus, createManualOrder, updateOrder, deleteOrder, isLoading } = useAuth();
+  const { user, allOrders, allUsers, updateOrderStatus, createManualOrder, updateOrder, deleteOrder, isLoading } = useAuth();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<"All" | OrderStatus>("All");
+  const [activeTab, setActiveTab] = useState<"All" | OrderStatus | "Database">("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -36,6 +36,8 @@ export default function AdminDashboard() {
     address: "",
     date: new Date().toISOString().split("T")[0], 
     instructions: "Manual entry by admin",
+    paymentStatus: "Unpaid" as PaymentStatus,
+    paymentMethod: "Cash on Delivery" as PaymentMethod,
   });
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function AdminDashboard() {
     createManualOrder({ ...manualOrder, total });
     toast.success("Manual order created!");
     setIsModalOpen(false);
-    setManualOrder({ userName: "", userEmail: "guest@aqua.com", items: [{ id: "can-20l", name: "20L Water Can", quantity: 1, price: 60 }], phone: "", address: "", date: new Date().toISOString().split("T")[0], instructions: "Manual entry by admin" });
+    setManualOrder({ userName: "", userEmail: "guest@aqua.com", items: [{ id: "can-20l", name: "20L Water Can", quantity: 1, price: 60 }], phone: "", address: "", date: new Date().toISOString().split("T")[0], instructions: "Manual entry by admin", paymentStatus: "Unpaid", paymentMethod: "Cash on Delivery" });
   };
 
   const handleDelete = (orderId: string) => {
@@ -121,6 +123,7 @@ export default function AdminDashboard() {
     { label: "Pending", value: allOrders.filter(o => o.status === "Pending").length, icon: <Clock size={20} />, color: "text-amber-600", bg: "bg-amber-50" },
     { label: "Confirmed", value: allOrders.filter(o => o.status === "Confirmed").length, icon: <ShieldCheck size={20} />, color: "text-blue-500", bg: "bg-blue-50" },
     { label: "Delivered", value: allOrders.filter(o => o.status === "Delivered").length, icon: <CheckCircle size={20} />, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "Customers", value: allUsers.length, icon: <Users size={20} />, color: "text-purple-600", bg: "bg-purple-50" },
   ];
 
   return (
@@ -144,7 +147,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
           {stats.map((s, i) => (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} key={i} className="card p-6 bg-white">
               <div className={`w-12 h-12 ${s.bg} ${s.color} rounded-2xl flex items-center justify-center mb-4`}>
@@ -161,7 +164,7 @@ export default function AdminDashboard() {
           {/* Controls */}
           <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-50">
             <div className="flex bg-slate-50 p-1 rounded-xl w-fit border border-slate-100">
-              {["All", "Pending", "Confirmed", "Delivered"].map((tab) => (
+              {["All", "Pending", "Confirmed", "Delivered", "Database"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab as any)}
@@ -179,73 +182,96 @@ export default function AdminDashboard() {
 
           {/* Table */}
           <div className="overflow-x-auto">
-            <div className="min-w-[1050px]">
-              <div className="grid grid-cols-[1fr_1.2fr_1.8fr_1.8fr_0.7fr_0.8fr_1.3fr] px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-slate-400 bg-slate-50/50">
-                <div>Order / Date</div><div>Customer</div><div>Items</div><div>Delivery</div><div>Returns</div><div>Status</div><div className="text-right pr-4">Actions</div>
-              </div>
-
-              <div className="divide-y divide-slate-50">
-                {filteredOrders.length === 0 ? (
-                  <div className="p-20 text-center text-slate-400">
-                    <Package size={48} className="mx-auto mb-4 opacity-10" />
-                    <p className="text-sm italic">No orders found matching your criteria</p>
-                  </div>
-                ) : (
-                  filteredOrders.map((order) => (
-                      <div
-                        key={order.id}
-                        className="grid grid-cols-[1fr_1.2fr_1.8fr_1.8fr_0.7fr_0.8fr_1.3fr] px-8 py-6 items-center hover:bg-slate-50/50 transition-colors"
-                      >
-                        <div>
-                          <div className="font-mono text-sm font-bold text-blue-600 mb-1 leading-none">{order.id}</div>
-                          <div className="text-[10px] text-slate-400 flex items-center gap-1.5"><Calendar size={10} /> {new Date(order.createdAt).toLocaleDateString()}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-1 truncate"><UserIcon size={14} className="text-slate-300" /> {order.userName}</div>
-                          <div className="text-[11px] text-slate-400 flex items-center gap-1.5"><Phone size={12} className="text-slate-300" /> {order.phone}</div>
-                        </div>
-                        <div className="space-y-1 pr-4">
-                          {order.items && order.items.length > 0 ? (
-                            order.items.map((item, idx) => (
-                              <div key={idx} className="text-[11px] font-bold text-slate-900 leading-tight">
-                                <span className="text-blue-600">{item.quantity}</span> × {item.name || item.id?.replace(/-/g, ' ') || "Product"}
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-[11px] font-bold text-slate-900">
-                              <span className="text-blue-600">{order.cans || 0}</span> × {order.productName || "Standard Can"}
-                            </div>
-                          )}
-                        </div>
-                        <div className="space-y-1 pr-4">
-                          <div className="text-[11px] font-medium text-slate-600 flex items-start gap-1.5"><MapPin size={14} className="text-slate-300 mt-0.5 shrink-0" /> <span className="line-clamp-2">{order.address}</span></div>
-                          <div className="text-[10px] text-slate-400 italic pl-5 line-clamp-1">{order.instructions}</div>
-                        </div>
-                        <div className="text-center">
-                          <div className={`text-sm font-bold ${order.cansReturned ? "text-emerald-600" : "text-slate-300"}`}>
-                            {order.cansReturned || 0}
-                          </div>
-                          <div className="text-[9px] uppercase tracking-tighter text-slate-400 font-bold">Cans</div>
-                        </div>
-                        <div><span className={`status-badge status-${order.status.toLowerCase()}`}>{order.status}</span></div>
-                        <div className="flex items-center justify-end gap-1.5">
-                          <select
-                            value={order.status}
-                            onChange={(e) => handleStatusUpdate(order.id, e.target.value as OrderStatus)}
-                            className="text-[10px] font-bold bg-slate-100 border-none rounded-lg px-2 py-1.5 outline-none cursor-pointer hover:bg-slate-200 transition-colors w-24"
-                          >
-                            <option value="Pending">Pending</option>
-                            <option value="Confirmed">Confirm</option>
-                            <option value="Delivered">Deliver</option>
-                          </select>
-                          <button onClick={() => setEditingOrder(order)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit Order"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete(order.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete Order"><Trash2 size={16} /></button>
-                        </div>
+            {activeTab === "Database" ? (
+              <div className="min-w-[1000px]">
+                <div className="grid grid-cols-[1.5fr_1.5fr_1fr_2fr_1fr] px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-slate-400 bg-slate-50/50">
+                  <div>Customer Name</div><div>Email Address</div><div>Phone</div><div>Delivery Address</div><div className="text-right pr-4">Role</div>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {allUsers.map((u, i) => (
+                    <div key={i} className="grid grid-cols-[1.5fr_1.5fr_1fr_2fr_1fr] px-8 py-5 items-center hover:bg-slate-50/50 transition-colors">
+                      <div className="text-sm font-bold text-slate-900 flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-[10px] font-bold">{u.name[0]}</div> {u.name}</div>
+                      <div className="text-sm text-slate-500">{u.email}</div>
+                      <div className="text-sm text-slate-500 font-mono">{u.phone || "—"}</div>
+                      <div className="text-sm text-slate-500 line-clamp-1">{u.address || "—"}</div>
+                      <div className="text-right pr-4"><span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${u.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-slate-50 text-slate-500'}`}>{u.role}</span></div>
                     </div>
-                  ))
-                )}
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="min-w-[1200px]">
+                <div className="grid grid-cols-[0.9fr_1.1fr_1.5fr_1.8fr_1.1fr_1.2fr_0.6fr] px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-slate-400 bg-slate-50/50">
+                  <div>Order / Date</div><div>Customer</div><div>Items</div><div>Delivery</div><div>Payment</div><div>Status Update</div><div className="text-right pr-4">Actions</div>
+                </div>
+
+                <div className="divide-y divide-slate-50">
+                  {filteredOrders.length === 0 ? (
+                    <div className="p-20 text-center text-slate-400">
+                      <Package size={48} className="mx-auto mb-4 opacity-10" />
+                      <p className="text-sm italic">No orders found matching your criteria</p>
+                    </div>
+                  ) : (
+                    filteredOrders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="grid grid-cols-[0.9fr_1.1fr_1.5fr_1.8fr_1.1fr_1.2fr_0.6fr] px-8 py-6 items-center hover:bg-slate-50/50 transition-colors"
+                        >
+                          <div>
+                            <div className="font-mono text-sm font-bold text-blue-600 mb-1 leading-none">{order.id}</div>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5"><Calendar size={10} /> {new Date(order.createdAt).toLocaleDateString()}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-1 truncate"><UserIcon size={14} className="text-slate-300" /> {order.userName}</div>
+                            <div className="text-[11px] text-slate-400 flex items-center gap-1.5"><Phone size={12} className="text-slate-300" /> {order.phone}</div>
+                          </div>
+                          <div className="space-y-1 pr-4">
+                            {order.items && order.items.length > 0 ? (
+                              order.items.map((item, idx) => (
+                                <div key={idx} className="text-[11px] font-bold text-slate-900 leading-tight">
+                                  <span className="text-blue-600">{item.quantity}</span> × {item.name || item.id?.replace(/-/g, ' ') || "Product"}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-[11px] font-bold text-slate-900">
+                                <span className="text-blue-600">{order.cans || 0}</span> × {order.productName || "Standard Can"}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-1 pr-4">
+                            <div className="text-[11px] font-medium text-slate-600 flex items-start gap-1.5"><MapPin size={14} className="text-slate-300 mt-0.5 shrink-0" /> <span className="line-clamp-2">{order.address}</span></div>
+                            <div className="text-[10px] text-slate-400 italic pl-5 line-clamp-1">{order.instructions}</div>
+                          </div>
+                          <div>
+                            <div className={`text-[11px] font-bold ${order.paymentStatus === "Paid" ? "text-emerald-600" : "text-amber-600"}`}>
+                              {order.paymentStatus}
+                            </div>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                              <IndianRupee size={10} /> {order.paymentMethod}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <span className={`status-badge status-${order.status.toLowerCase()} w-fit`}>{order.status}</span>
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleStatusUpdate(order.id, e.target.value as OrderStatus)}
+                              className="text-[11px] font-bold bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none cursor-pointer hover:border-blue-300 transition-colors w-28 shadow-sm appearance-auto text-slate-700"
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="Confirmed">Confirmed</option>
+                              <option value="Delivered">Delivered</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button type="button" onClick={() => setEditingOrder(order)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit Order"><Edit2 size={16} /></button>
+                            <button type="button" onClick={() => handleDelete(order.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete Order"><Trash2 size={16} /></button>
+                          </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -338,6 +364,31 @@ export default function AdminDashboard() {
                   {editingOrder && (
                     <div><label className="label">Cans Returned</label><input type="number" min={0} value={editingOrder.cansReturned || 0} onChange={(e) => setEditingOrder({...editingOrder, cansReturned: parseInt(e.target.value) || 0})} className="input-field border-emerald-100 bg-emerald-50/30" /></div>
                   )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Payment Status</label>
+                    <select 
+                      className="input-field" 
+                      value={editingOrder ? editingOrder.paymentStatus : manualOrder.paymentStatus} 
+                      onChange={(e) => editingOrder ? setEditingOrder({...editingOrder, paymentStatus: e.target.value as PaymentStatus}) : setManualOrder({ ...manualOrder, paymentStatus: e.target.value as PaymentStatus })}
+                    >
+                      <option value="Unpaid">Unpaid</option>
+                      <option value="Paid">Paid</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Payment Method</label>
+                    <select 
+                      className="input-field" 
+                      value={editingOrder ? editingOrder.paymentMethod : manualOrder.paymentMethod} 
+                      onChange={(e) => editingOrder ? setEditingOrder({...editingOrder, paymentMethod: e.target.value as PaymentMethod}) : setManualOrder({ ...manualOrder, paymentMethod: e.target.value as PaymentMethod })}
+                    >
+                      <option value="Cash on Delivery">Cash on Delivery</option>
+                      <option value="Online">Online</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div><label className="label">Delivery Address</label><textarea required rows={2} value={editingOrder ? editingOrder.address : manualOrder.address} onChange={(e) => editingOrder ? setEditingOrder({...editingOrder, address: e.target.value}) : setManualOrder({ ...manualOrder, address: e.target.value })} className="input-field resize-none" /></div>
