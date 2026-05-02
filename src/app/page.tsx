@@ -94,6 +94,15 @@ const HeroProduct = () => {
         transition={{ duration: 4, repeat: Infinity }}
         className="absolute -top-6 -right-6 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-2xl z-20 hidden md:block border border-white"
       >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+            <ShieldCheck size={20} />
+          </div>
+          <div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Quality</div>
+            <div className="text-xs font-bold text-slate-900">Guaranteed</div>
+          </div>
+        </div>
       </motion.div>
     </div>
   );
@@ -164,7 +173,7 @@ export default function LandingPage() {
   return (
     <div className="overflow-hidden water-bg">
       {/* ═══════════════════ HERO ═══════════════════ */}
-      <section className="relative min-h-[92vh] flex items-center">
+      <section className="relative min-h-[92vh] flex items-center pt-32 pb-20">
         <div className="absolute top-20 right-[10%] w-[500px] h-[500px] rounded-full opacity-40" style={{ background: "radial-gradient(circle, rgba(0,132,255,0.06), transparent 70%)" }} />
         <div className="absolute bottom-20 left-[5%] w-[400px] h-[400px] rounded-full opacity-30" style={{ background: "radial-gradient(circle, rgba(0,91,234,0.04), transparent 70%)" }} />
 

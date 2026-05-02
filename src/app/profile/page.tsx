@@ -43,23 +43,21 @@ export default function ProfilePage() {
     setIsEditModalOpen(true);
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingOrder) {
-      updateOrder(editingOrder.id, {
+      await updateOrder(editingOrder.id, {
         cans: editingOrder.cans, address: editingOrder.address,
         phone: editingOrder.phone, date: editingOrder.date, total: 8 * 60,
       });
-      toast.success("Order updated!");
       setIsEditModalOpen(false);
       setEditingOrder(null);
     }
   };
 
-  const handleProfileSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUserProfile(profileData);
-    toast.success("Profile updated!");
+    await updateUserProfile(profileData);
     setIsProfileModalOpen(false);
   };
 
@@ -69,7 +67,7 @@ export default function ProfilePage() {
   const deliveredCount = orders.filter((o) => o.status === "Delivered").length;
 
   return (
-    <div className="min-h-screen water-bg py-12">
+    <div className="min-h-screen water-bg pt-24 pb-12">
       <div className="container mx-auto px-6 max-w-5xl">
         {/* ─── Profile Header ─── */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card p-0 overflow-hidden mb-10 bg-white shadow-xl shadow-slate-100">

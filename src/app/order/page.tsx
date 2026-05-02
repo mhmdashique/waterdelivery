@@ -77,7 +77,7 @@ export default function OrderPage() {
   const deliveryFee = (hasCans && canQty >= 3) || subtotal > 500 ? 0 : 10;
   const total = subtotal + deliveryFee;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cartItems.length === 0) {
       toast.error("Your cart is empty!");
@@ -89,7 +89,7 @@ export default function OrderPage() {
     
     const productSummary = cartItems.map(item => `${item.quantity} × ${item.name}`).join(", ");
     
-    placeOrder({ 
+    await placeOrder({ 
       items: cartItems.map(item => ({
         id: item.id,
         name: item.name,
@@ -155,8 +155,8 @@ export default function OrderPage() {
   }
 
   return (
-    <div className="min-h-screen water-bg">
-      <div className="container mx-auto px-6 py-12 max-w-6xl">
+    <div className="min-h-screen water-bg pt-24 pb-12">
+      <div className="container mx-auto px-6 max-w-6xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
             <div className="flex items-center gap-4">

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { createClient } from "@/utils/supabase/client";
 
 export type UserRole = "user" | "admin";
 
@@ -63,16 +64,16 @@ interface AuthContextType {
   allUsers: User[];
   notifications: AppNotification[];
   unreadCount: number;
-  signin: (email: string, password: string) => { success: boolean; message: string };
-  signup: (userData: Omit<User, "id" | "role">, password: string) => { success: boolean; message: string };
-  signout: () => void;
-  placeOrder: (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }) => void;
-  createManualOrder: (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => void;
-  updateOrder: (orderId: string, orderData: Partial<Order>) => void;
-  deleteOrder: (orderId: string) => void;
-  updateUserProfile: (userData: Partial<User>) => void;
-  resetPassword: (email: string, newPass: string) => { success: boolean; message: string };
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  signin: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  signup: (userData: Omit<User, "id" | "role">, password: string) => Promise<{ success: boolean; message: string }>;
+  signout: () => Promise<void>;
+  placeOrder: (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }) => Promise<void>;
+  createManualOrder: (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => Promise<void>;
+  updateOrder: (orderId: string, orderData: Partial<Order>) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
+  updateUserProfile: (userData: Partial<User>) => Promise<void>;
+  resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   isLoading: boolean;
@@ -80,307 +81,374 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const INITIAL_USERS: Record<string, { user: User; pass: string }> = {
-  "admin@aqua.com": {
-    user: { id: "admin-1", name: "Admin User", email: "admin@aqua.com", role: "admin" },
-    pass: "admin123",
-  },
-  "johndoe@gmail.com": {
-    user: { 
-      id: "user-1", 
-      name: "John Doe", 
-      email: "johndoe@gmail.com", 
-      role: "user",
-      address: "Pezhummoodu, TVM, Kerala",
-      phone: "+91 9876543210"
-    },
-    pass: "user123",
-  },
-};
-
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [allUsers, setAllUsers] = useState<Record<string, { user: User; pass: string }>>(INITIAL_USERS);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const supabase = createClient();
 
   useEffect(() => {
-    // Load state from localStorage on mount
-    const savedUser = localStorage.getItem("aqua_user");
-    const savedOrders = localStorage.getItem("aqua_orders");
-    const savedUsers = localStorage.getItem("aqua_all_users");
-    const savedNotifs = localStorage.getItem("aqua_notifications");
-
-    if (savedUsers) setAllUsers(JSON.parse(savedUsers));
-    if (savedUser) setUser(JSON.parse(savedUser));
-    if (savedOrders) setOrders(JSON.parse(savedOrders));
-    if (savedNotifs) setNotifications(JSON.parse(savedNotifs));
-
-    // Request browser notification permission
-    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
+    // Check for auth errors in URL (e.g., from expired links)
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error_description');
+    if (error) {
+      toast.error(error);
+      // Clean up the URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
     }
 
-    setIsLoading(false);
-  }, []); // Only run once on mount
-
-  useEffect(() => {
-    // Sync across tabs
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "aqua_orders") {
-        const newOrders = JSON.parse(e.newValue || "[]");
-        const oldOrders = JSON.parse(e.oldValue || "[]");
-        
-        // If a new order was added and I am admin, show high-priority alert
-        if (newOrders.length > oldOrders.length && user?.role === "admin") {
-          playNotificationSound();
-        }
-        
-        setOrders(newOrders);
-      }
-      if (e.key === "aqua_notifications") {
-        const newNotifs = JSON.parse(e.newValue || "[]");
-        setNotifications(newNotifs);
-      }
-      if (e.key === "aqua_user") {
-        setUser(JSON.parse(e.newValue || "null"));
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await fetchUserProfile(session.user.id);
+      } else {
+        setIsLoading(false);
       }
     };
 
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [user]); // Re-run listener when user role changes for the alert logic
+    initializeAuth();
 
-  function playNotificationSound() {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        await fetchUserProfile(session.user.id);
+      } else {
+        setUser(null);
+        setOrders([]);
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchUserProfile = async (userId: string) => {
     try {
-      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-      audio.play();
-    } catch (err) {
-      console.log("Audio play failed", err);
-    }
-  }
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-  const signin = (email: string, password: string) => {
-    const found = allUsers[email];
-    if (found && found.pass === password) {
-      // Security Layer: Double-check admin privileges
-      if (found.user.role === "admin" && found.user.email !== "admin@aqua.com") {
-        return { success: false, message: "Unauthorized administrative access" };
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Profile not found, this can happen immediately after signup
+          // before the database trigger has finished.
+          console.warn("Profile not found for user, will be created by trigger or on first update.");
+          
+          // Optional: Fetch user metadata as a temporary fallback
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            setUser({
+              id: authUser.id,
+              name: authUser.user_metadata?.name || 'New User',
+              email: authUser.email || '',
+              role: 'user',
+              address: authUser.user_metadata?.address,
+              phone: authUser.user_metadata?.phone,
+            });
+          }
+          return;
+        }
+        throw error;
       }
-      
-      setUser(found.user);
-      localStorage.setItem("aqua_user", JSON.stringify(found.user));
-      
-      // Track session activity
-      if (found.user.role === "admin") {
-        localStorage.setItem("aqua_admin_session", "active");
+
+      if (data) {
+        const userData: User = {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          role: data.role as UserRole,
+          address: data.address,
+          phone: data.phone,
+        };
+        setUser(userData);
+        await fetchOrders(userData);
+        if (userData.role === 'admin') {
+          await fetchAllData();
+        }
       }
-      
-      return { success: true, message: "Signed in successfully" };
+    } catch (error) {
+      // Avoid logging empty objects, try to get a useful message
+      const msg = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error("Error fetching profile:", msg);
+    } finally {
+      setIsLoading(false);
     }
-    return { success: false, message: "Invalid email or password" };
   };
 
-  const signup = (userData: Omit<User, "id" | "role">, password: string) => {
-    if (allUsers[userData.email]) {
-      return { success: false, message: "Email already exists" };
+  const fetchOrders = async (currentUser: User) => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (*)
+        `)
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const mappedOrders: Order[] = data.map(o => ({
+          id: o.id,
+          userEmail: currentUser.email,
+          userName: o.user_name,
+          items: o.order_items.map((i: any) => ({
+            id: i.id,
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price
+          })),
+          address: o.address,
+          phone: o.phone,
+          date: o.delivery_date,
+          instructions: o.instructions,
+          status: o.status as OrderStatus,
+          paymentStatus: o.payment_status as PaymentStatus,
+          paymentMethod: o.payment_method as PaymentMethod,
+          total: o.total,
+          cansReturned: o.cans_returned,
+          createdAt: o.created_at,
+        }));
+        setOrders(mappedOrders);
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error);
     }
-
-    const newUser: User = {
-      ...userData,
-      id: `user-${Math.random().toString(36).substr(2, 9)}`,
-      role: "user",
-    };
-
-    const updatedUsers = {
-      ...allUsers,
-      [userData.email]: { user: newUser, pass: password }
-    };
-
-    setAllUsers(updatedUsers);
-    localStorage.setItem("aqua_all_users", JSON.stringify(updatedUsers));
-    
-    // Auto sign in after sign up
-    setUser(newUser);
-    localStorage.setItem("aqua_user", JSON.stringify(newUser));
-    
-    return { success: true, message: "Account created successfully" };
   };
 
-  const signout = () => {
-    if (user?.role === "admin") {
-      localStorage.removeItem("aqua_admin_session");
+  const fetchAllData = async () => {
+    // Admin only: fetch all orders and users
+    const { data: ordersData } = await supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false });
+    const { data: usersData } = await supabase.from('profiles').select('*');
+
+    if (ordersData) {
+      const mapped: Order[] = ordersData.map(o => ({
+        id: o.id,
+        userEmail: "", // We'd need to join with profiles to get emails if needed
+        userName: o.user_name,
+        items: o.order_items.map((i: any) => ({
+          id: i.id,
+          name: i.name,
+          quantity: i.quantity,
+          price: i.price
+        })),
+        address: o.address,
+        phone: o.phone,
+        date: o.delivery_date,
+        instructions: o.instructions,
+        status: o.status as OrderStatus,
+        paymentStatus: o.payment_status as PaymentStatus,
+        paymentMethod: o.payment_method as PaymentMethod,
+        total: o.total,
+        cansReturned: o.cans_returned,
+        createdAt: o.created_at,
+      }));
+      setAllOrders(mapped);
     }
+
+    if (usersData) {
+      setAllUsers(usersData.map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role as UserRole,
+        address: u.address,
+        phone: u.phone
+      })));
+    }
+  };
+
+  const signin = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { success: false, message: error.message };
+    return { success: true, message: "Signed in successfully" };
+  };
+
+  const signup = async (userData: Omit<User, "id" | "role">, password: string) => {
+    const { error } = await supabase.auth.signUp({
+      email: userData.email,
+      password,
+      options: {
+        data: {
+          name: userData.name,
+          address: userData.address,
+          phone: userData.phone,
+        }
+      }
+    });
+    
+    if (error) {
+      if (error.message.toLowerCase().includes("rate limit exceeded")) {
+        return { 
+          success: false, 
+          message: "Email rate limit exceeded. Please wait a few minutes or disable 'Email Confirmation' in your Supabase Auth settings for development." 
+        };
+      }
+      return { success: false, message: error.message };
+    }
+    return { success: true, message: "Account created successfully. Please check your email for verification." };
+  };
+
+  const signout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem("aqua_user");
+    setOrders([]);
     router.push("/");
   };
 
-  const placeOrder = (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }) => {
+  const placeOrder = async (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }) => {
     if (!user) return;
 
-    const newOrder: Order = {
-      ...orderData,
-      paymentStatus: "Unpaid",
-      paymentMethod: orderData.paymentMethod || "Cash on Delivery",
-      cansReturned: 0,
-      id: `ORD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      userEmail: user.email,
-      userName: user.name,
-      status: "Pending",
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedOrders = [newOrder, ...orders];
-    setOrders(updatedOrders);
-    localStorage.setItem("aqua_orders", JSON.stringify(updatedOrders));
-
-    // Create admin notification
-    const notif: AppNotification = {
-      id: `notif-${Date.now()}`,
-      type: "new_order",
-      title: "New Order Received!",
-      message: `${user.name} ordered ${orderData.cans} × ${orderData.productName} — ₹${orderData.total}`,
-      orderId: newOrder.id,
-      read: false,
-      createdAt: new Date().toISOString(),
-    };
-    const updatedNotifs = [notif, ...notifications];
-    setNotifications(updatedNotifs);
-    localStorage.setItem("aqua_notifications", JSON.stringify(updatedNotifs));
-
-    // Browser notification
-    sendBrowserNotification(notif.title, notif.message);
+    const orderId = `ORD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     
-    // Play sound
-    playNotificationSound();
-    
-    // Show toast for admin if they are on this tab
-    if (user?.role === "admin") {
-       toast.success("New Order Alert!", {
-         description: notif.message,
-         duration: 10000,
-       });
+    const { error: orderError } = await supabase.from('orders').insert({
+      id: orderId,
+      user_id: user.id,
+      user_name: user.name,
+      address: orderData.address,
+      phone: orderData.phone,
+      delivery_date: orderData.date,
+      instructions: orderData.instructions,
+      payment_method: orderData.paymentMethod || "Cash on Delivery",
+      total: orderData.total,
+    });
+
+    if (orderError) {
+      toast.error("Failed to place order: " + orderError.message);
+      return;
     }
-  };
 
-  const createManualOrder = (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => {
-    const newOrder: Order = {
-      ...orderData,
-      paymentStatus: orderData.paymentStatus || "Unpaid",
-      paymentMethod: orderData.paymentMethod || "Cash on Delivery",
-      cansReturned: orderData.cansReturned || 0,
-      id: `MAN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      status: "Confirmed", // Manual orders are usually confirmed immediately
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedOrders = [newOrder, ...orders];
-    setOrders(updatedOrders);
-    localStorage.setItem("aqua_orders", JSON.stringify(updatedOrders));
-
-    // Alert admin if on same tab
-    playNotificationSound();
-    toast.info("Manual order created successfully!", { icon: "🔔" });
-  };
-
-  const updateOrder = (orderId: string, orderData: Partial<Order>) => {
-    const updatedOrders = orders.map((o) => 
-      o.id === orderId ? { ...o, ...orderData } : o
+    const { error: itemsError } = await supabase.from('order_items').insert(
+      orderData.items.map(item => ({
+        order_id: orderId,
+        product_id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price
+      }))
     );
-    setOrders(updatedOrders);
-    localStorage.setItem("aqua_orders", JSON.stringify(updatedOrders));
+
+    if (itemsError) {
+      console.error("Error inserting items:", itemsError);
+    }
+
+    toast.success("Order placed successfully!");
+    await fetchOrders(user);
   };
 
-  const deleteOrder = (orderId: string) => {
-    const updatedOrders = orders.filter((o) => o.id !== orderId);
-    setOrders(updatedOrders);
-    localStorage.setItem("aqua_orders", JSON.stringify(updatedOrders));
+  const createManualOrder = async (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => {
+     // Implementation similar to placeOrder but with explicit user details and status
+     const orderId = `MAN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+     
+     await supabase.from('orders').insert({
+       id: orderId,
+       user_name: orderData.userName,
+       address: orderData.address,
+       phone: orderData.phone,
+       delivery_date: orderData.date,
+       instructions: orderData.instructions,
+       status: 'Confirmed',
+       payment_status: orderData.paymentStatus || 'Unpaid',
+       payment_method: orderData.paymentMethod || 'Cash on Delivery',
+       total: orderData.total,
+       cans_returned: orderData.cansReturned || 0
+     });
+
+     await supabase.from('order_items').insert(
+       orderData.items.map(item => ({
+         order_id: orderId,
+         product_id: item.id,
+         name: item.name,
+         quantity: item.quantity,
+         price: item.price
+       }))
+     );
+
+     toast.success("Manual order created!");
+     if (user?.role === 'admin') await fetchAllData();
   };
 
-  const updateUserProfile = (userData: Partial<User>) => {
-    if (!user) return;
-    
-    const updatedUser = { ...user, ...userData };
-    setUser(updatedUser);
-    localStorage.setItem("aqua_user", JSON.stringify(updatedUser));
+  const updateOrder = async (orderId: string, orderData: Partial<Order>) => {
+    const { error } = await supabase.from('orders').update({
+      status: orderData.status,
+      payment_status: orderData.paymentStatus,
+      cans_returned: orderData.cansReturned,
+      address: orderData.address,
+      phone: orderData.phone,
+      delivery_date: orderData.date,
+    }).eq('id', orderId);
 
-    // Also update in allUsers
-    const updatedAllUsers = {
-      ...allUsers,
-      [user.email]: { ...allUsers[user.email], user: updatedUser }
-    };
-    
-    // If email changed, we might need more complex logic, but for now let's keep it simple
-    if (userData.email && userData.email !== user.email) {
-      const { [user.email]: oldUserData, ...rest } = updatedAllUsers;
-      const finalAllUsers = { ...rest, [userData.email]: oldUserData };
-      setAllUsers(finalAllUsers);
-      localStorage.setItem("aqua_all_users", JSON.stringify(finalAllUsers));
+    if (error) {
+      toast.error("Update failed: " + error.message);
     } else {
-      setAllUsers(updatedAllUsers);
-      localStorage.setItem("aqua_all_users", JSON.stringify(updatedAllUsers));
+      toast.success("Order updated!");
+      if (user) await fetchOrders(user);
+      if (user?.role === 'admin') await fetchAllData();
     }
   };
 
-  const resetPassword = (email: string, newPass: string) => {
-    if (!allUsers[email]) {
-      return { success: false, message: "Email not found" };
+  const deleteOrder = async (orderId: string) => {
+    const { error } = await supabase.from('orders').delete().eq('id', orderId);
+    if (error) {
+      toast.error("Delete failed: " + error.message);
+    } else {
+      toast.success("Order deleted");
+      if (user) await fetchOrders(user);
+      if (user?.role === 'admin') await fetchAllData();
     }
-
-    const updatedAllUsers = {
-      ...allUsers,
-      [email]: { ...allUsers[email], pass: newPass }
-    };
-
-    setAllUsers(updatedAllUsers);
-    localStorage.setItem("aqua_all_users", JSON.stringify(updatedAllUsers));
-    return { success: true, message: "Password reset successfully" };
   };
 
-  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
-    const updatedOrders = orders.map((o) => 
-      o.id === orderId ? { ...o, status } : o
-    );
-    setOrders(updatedOrders);
-    localStorage.setItem("aqua_orders", JSON.stringify(updatedOrders));
+  const updateUserProfile = async (userData: Partial<User>) => {
+    if (!user) return;
+    const { error } = await supabase.from('profiles').update({
+      name: userData.name,
+      address: userData.address,
+      phone: userData.phone,
+    }).eq('id', user.id);
+
+    if (error) {
+      toast.error("Profile update failed: " + error.message);
+    } else {
+      toast.success("Profile updated!");
+      await fetchUserProfile(user.id);
+    }
   };
 
-  const userOrders = orders.filter((o) => o.userEmail === user?.email);
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) return { success: false, message: error.message };
+    return { success: true, message: "Password reset email sent!" };
+  };
 
-  const sendBrowserNotification = (title: string, body: string) => {
-    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-      new Notification(title, {
-        body,
-        icon: "/favicon.ico",
-      });
-    }
+  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+    await updateOrder(orderId, { status });
   };
 
   const markNotificationRead = (id: string) => {
-    const updated = notifications.map((n) => n.id === id ? { ...n, read: true } : n);
-    setNotifications(updated);
-    localStorage.setItem("aqua_notifications", JSON.stringify(updated));
+    // Implement if notifications are in DB
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
 
   const markAllNotificationsRead = () => {
-    const updated = notifications.map((n) => ({ ...n, read: true }));
-    setNotifications(updated);
-    localStorage.setItem("aqua_notifications", JSON.stringify(updated));
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        orders: userOrders,
-        allOrders: orders,
-        allUsers: Object.values(allUsers).map(u => u.user),
+        orders,
+        allOrders,
+        allUsers,
         notifications,
-        unreadCount,
+        unreadCount: notifications.filter(n => !n.read).length,
         signin,
         signup,
         signout,

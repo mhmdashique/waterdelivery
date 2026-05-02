@@ -17,6 +17,7 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { signup, user, isLoading } = useAuth();
   const router = useRouter();
@@ -27,23 +28,28 @@ export default function SignUpPage() {
     }
   }, [user, isLoading, router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const result = signup({ name, email, address, phone }, password);
-    if (result.success) {
-      setSuccess(true);
-      toast.success("Account created! Welcome to AquaDrop.");
-    } else {
-      setError(result.message);
-      toast.error(result.message);
+    setIsSubmitting(true);
+    try {
+      const result = await signup({ name, email, address, phone }, password);
+      if (result.success) {
+        setSuccess(true);
+        toast.success("Account created! Please verify your email.");
+      } else {
+        setError(result.message);
+        toast.error(result.message);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   if (isLoading) return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-20 water-bg">
+    <div className="min-h-screen flex items-center justify-center px-6 pt-32 pb-20 water-bg">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -119,8 +125,20 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            <button className="btn-primary w-full py-3.5 text-base shadow-lg shadow-blue-100">
-              Create Account <ArrowRight size={18} />
+            <button 
+              disabled={isSubmitting} 
+              className={`btn-primary w-full py-3.5 text-base shadow-lg shadow-blue-100 flex items-center justify-center gap-2 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Creating Account...
+                </>
+              ) : (
+                <>
+                  Create Account <ArrowRight size={18} />
+                </>
+              )}
             </button>
           </form>
 

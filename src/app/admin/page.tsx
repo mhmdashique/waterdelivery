@@ -42,7 +42,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Centralized security: Check for both role and designated email
-    const isAdmin = user?.role === "admin" && user?.email === "admin@aqua.com";
+    const isAdmin = user?.role === "admin";
     if (!isLoading && !isAdmin) {
       router.push("/signin");
     }
@@ -50,24 +50,24 @@ export default function AdminDashboard() {
 
   if (isLoading || !user || user.role !== "admin") return null;
 
-  const handleStatusUpdate = (orderId: string, status: OrderStatus) => {
-    updateOrderStatus(orderId, status);
+  const handleStatusUpdate = async (orderId: string, status: OrderStatus) => {
+    await updateOrderStatus(orderId, status);
     toast.success(`Status → ${status}`);
   };
 
-  const handleManualSubmit = (e: React.FormEvent) => {
+  const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const total = manualOrder.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    createManualOrder({ ...manualOrder, total });
+    await createManualOrder({ ...manualOrder, total });
     toast.success("Manual order created!");
     setIsModalOpen(false);
     setManualOrder({ userName: "", userEmail: "guest@aqua.com", items: [{ id: "can-20l", name: "20L Water Can", quantity: 1, price: 60 }], phone: "", address: "", date: new Date().toISOString().split("T")[0], instructions: "Manual entry by admin", paymentStatus: "Unpaid", paymentMethod: "Cash on Delivery" });
   };
 
-  const handleDelete = (orderId: string) => {
+  const handleDelete = async (orderId: string) => {
     if (window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
-      deleteOrder(orderId);
-      toast.error("Order deleted successfully");
+      await deleteOrder(orderId);
+      toast.success("Order deleted successfully");
     }
   };
 
@@ -127,7 +127,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen water-bg py-10">
+    <div className="min-h-screen water-bg pt-24 pb-12">
       <div className="container mx-auto px-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">

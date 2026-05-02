@@ -14,6 +14,7 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
@@ -29,36 +30,45 @@ export default function SignInPage() {
     }
   }, [user, isLoading, router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const result = signin(email, password);
-    if (result.success) {
-      setSuccess(true);
-      toast.success("Welcome back!");
-    } else {
-      setError(result.message);
-      toast.error(result.message);
+    setIsSubmitting(true);
+    try {
+      const result = await signin(email, password);
+      if (result.success) {
+        setSuccess(true);
+        toast.success("Welcome back!");
+      } else {
+        setError(result.message);
+        toast.error(result.message);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleResetSubmit = (e: React.FormEvent) => {
+  const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = resetPassword(resetEmail, newPassword);
-    if (result.success) {
-      toast.success("Password reset successful!");
-      setIsResetModalOpen(false);
-      setResetEmail("");
-      setNewPassword("");
-    } else {
-      toast.error(result.message);
+    setIsSubmitting(true);
+    try {
+      const result = await resetPassword(resetEmail);
+      if (result.success) {
+        toast.success("Password reset email sent!");
+        setIsResetModalOpen(false);
+        setResetEmail("");
+      } else {
+        toast.error(result.message);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   if (isLoading) return null;
 
   return (
-    <div className="min-h-[90vh] flex items-center justify-center px-6 py-16 water-bg">
+    <div className="min-h-screen flex items-center justify-center px-6 pt-28 pb-20 water-bg">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -118,8 +128,20 @@ export default function SignInPage() {
               </div>
             </div>
 
-            <button className="btn-primary w-full py-3.5 text-base shadow-lg shadow-blue-100">
-              Sign In <ArrowRight size={18} />
+            <button 
+              disabled={isSubmitting} 
+              className={`btn-primary w-full py-3.5 text-base shadow-lg shadow-blue-100 flex items-center justify-center gap-2 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                <>
+                  Sign In <ArrowRight size={18} />
+                </>
+              )}
             </button>
           </form>
 
@@ -131,19 +153,7 @@ export default function SignInPage() {
           </div>
         </div>
 
-        <div className="mt-8">
-          <div className="text-[10px] uppercase tracking-widest font-bold text-slate-300 mb-3 text-center">Admin Demo Access</div>
-          <button
-            onClick={() => { setEmail("admin@aqua.com"); setPassword("admin123"); }}
-            className="w-full bg-white border border-slate-100 p-4 rounded-xl flex items-center justify-between hover:border-blue-200 hover:bg-blue-50/30 transition-all text-xs group shadow-sm"
-          >
-            <div className="text-left">
-              <div className="font-bold text-blue-600 mb-0.5 group-hover:text-blue-700 transition-colors">Admin Dashboard</div>
-              <div className="text-slate-400">admin@aqua.com / admin123</div>
-            </div>
-            <ArrowRight size={16} className="text-slate-200 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
-          </button>
-        </div>
+        
       </motion.div>
 
       <AnimatePresence>
@@ -169,17 +179,20 @@ export default function SignInPage() {
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                   </div>
                 </div>
-                <div>
-                  <label className="label">New Password</label>
-                  <div className="relative">
-                    <input type={showNewPassword ? "text" : "password"} required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" className="input-field pl-11 pr-12" />
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 transition-colors">
-                      {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-                <button type="submit" className="btn-primary w-full py-4 mt-2 font-bold shadow-lg shadow-blue-100">Update Password</button>
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="btn-primary w-full py-4 mt-2 font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Reset Link"
+                  )}
+                </button>
               </form>
             </motion.div>
           </div>

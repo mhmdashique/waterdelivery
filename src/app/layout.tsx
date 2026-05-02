@@ -27,12 +27,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
-      <body className={`${syne.variable} ${dmSans.variable} antialiased water-bg text-white`}>
+    <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth">
+      <body className={`${syne.variable} ${dmSans.variable} antialiased water-bg text-slate-900`}>
         <Toaster position="top-center" richColors theme="dark" />
         <AuthProvider>
           <Navbar />
-          <main className="pt-20">
+          <main>
             {children}
           </main>
         </AuthProvider>

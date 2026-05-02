@@ -24,9 +24,9 @@ export const Navbar = () => {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  const handleSignout = () => {
+  const handleSignout = async () => {
     if (window.confirm("Are you sure you want to log out of your account?")) {
-      signout();
+      await signout();
     }
   };
 
