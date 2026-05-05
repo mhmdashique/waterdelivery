@@ -375,6 +375,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const createManualOrder = async (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => {
+    if (!user) return;
+    
     // Implementation similar to placeOrder but with explicit user details and status
     const orderId = `MAN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
