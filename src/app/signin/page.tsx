@@ -7,6 +7,7 @@ import { Droplets, Eye, EyeOff, AlertCircle, CheckCircle2, X, Mail, Lock, ArrowR
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -65,10 +66,10 @@ export default function SignInPage() {
     }
   };
 
-  if (isLoading) return null;
+  if (isLoading) return <LoadingScreen message="Checking session..." />;
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 pt-28 pb-20 water-bg">
+    <div className="min-h-screen flex items-center justify-center px-6 pt-32 pb-20 water-bg">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}

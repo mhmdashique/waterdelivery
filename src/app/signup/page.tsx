@@ -7,6 +7,8 @@ import { Droplets, Eye, EyeOff, AlertCircle, CheckCircle2, User, Mail, MapPin, P
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { LocationButton } from "@/components/LocationButton";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 export default function SignUpPage() {
   const [name, setName] = useState("");
@@ -46,7 +48,7 @@ export default function SignUpPage() {
     }
   };
 
-  if (isLoading) return null;
+  if (isLoading) return <LoadingScreen message="Preparing account setup..." />;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 pt-32 pb-20 water-bg">
@@ -107,7 +109,10 @@ export default function SignUpPage() {
             </div>
 
             <div>
-              <label className="label">Delivery Address</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="label !mb-0">Delivery Address</label>
+                <LocationButton onLocationSelect={(addr) => setAddress(addr)} />
+              </div>
               <div className="relative">
                 <textarea required rows={2} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Pezhummoodu, TVM, Kerala" className="input-field pl-11 resize-none" />
                 <MapPin className="absolute left-3.5 top-3.5 text-slate-300" size={16} />

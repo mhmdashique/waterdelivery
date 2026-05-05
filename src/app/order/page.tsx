@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { useAuth, PaymentMethod } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, CheckCircle2, MapPin, Phone, Calendar, Info, ArrowLeft, ArrowRight, Minus, Plus, Trash2, Package, IndianRupee } from "lucide-react";
+import { ShoppingCart, CheckCircle2, MapPin, Phone, Calendar, Info, ArrowLeft, ArrowRight, Minus, Plus, Trash2, Package, IndianRupee, Droplets } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { LocationButton } from "@/components/LocationButton";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 const PRODUCTS = [
   {
@@ -39,6 +41,7 @@ export default function OrderPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Cash on Delivery");
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "user")) {
@@ -72,55 +75,80 @@ export default function OrderPage() {
 
   const cartItems = getCartItems();
   const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const hasCans = cartItems.some(item => item.id === "can-20l");
-  const canQty = cartItems.find(item => item.id === "can-20l")?.quantity || 0;
-  const deliveryFee = (hasCans && canQty >= 3) || subtotal > 500 ? 0 : 10;
-  const total = subtotal + deliveryFee;
+  const deliveryFee = 0;
+  const total = subtotal;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
     if (cartItems.length === 0) {
       toast.error("Your cart is empty!");
       return;
     }
 
-    const mockId = `ORD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    setOrderId(mockId);
+    if (!address.trim() || !phone.trim()) {
+      toast.error("Please provide a delivery address and phone number.");
+      setShowConfirm(false);
+      return;
+    }
+
+    if (!showConfirm) {
+      setShowConfirm(true);
+      return;
+    }
+
+    setIsPlacingOrder(true);
+    const loadingToast = toast.loading("Processing your order...");
     
-    const productSummary = cartItems.map(item => `${item.quantity} × ${item.name}`).join(", ");
-    
-    await placeOrder({ 
-      items: cartItems.map(item => ({
-        id: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price
-      })),
-      address, 
-      phone, 
-      date, 
-      instructions, 
-      paymentMethod,
-      total 
-    });
-    
-    setIsSubmitted(true);
-    toast.success("Order placed successfully! 💧");
-    window.scrollTo(0, 0);
+    try {
+      const success = await placeOrder({
+        items: cartItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        address,
+        phone,
+        date,
+        instructions,
+        paymentMethod,
+        total
+      });
+
+      if (success) {
+        setIsSubmitted(true);
+        setShowConfirm(false);
+        toast.dismiss(loadingToast);
+        window.scrollTo(0, 0);
+      } else {
+        toast.error("Could not place order. Please check your connection.");
+        toast.dismiss(loadingToast);
+      }
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error("An unexpected error occurred.");
+      toast.dismiss(loadingToast);
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
 
-  if (isLoading || !user) return null;
+  if (isLoading) return <LoadingScreen message="Initializing checkout..." />;
+  if (!user) return <LoadingScreen message="Redirecting to sign in..." />;
 
   if (isSubmitted) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center px-6 py-16 water-bg">
+      <div className="min-h-screen flex flex-col items-center justify-start px-6 pt-32 pb-20 water-bg overflow-y-auto">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center max-w-md w-full">
           <div className="w-20 h-20 rounded-3xl mx-auto mb-8 flex items-center justify-center bg-emerald-50 border border-emerald-100">
             <CheckCircle2 size={40} className="text-emerald-500" />
           </div>
           <h1 className="text-3xl font-bold mb-3 text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>Order Placed!</h1>
           <p className="text-slate-500 mb-6">Your hydration is on the way.</p>
-          
+
           <div className="card p-6 text-left mb-8 space-y-4 bg-white shadow-xl shadow-slate-100">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2">Order Summary</div>
             {cartItems.map((item, i) => (
@@ -133,15 +161,15 @@ export default function OrderPage() {
               <span className="text-slate-900">Total</span>
               <span className="text-blue-600">₹{total}</span>
             </div>
-            
+
             <div className="mt-4 pt-4 border-t border-slate-50">
-               <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">
-                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  {paymentMethod === "Online" ? "Payment Initiated" : "Payment Pending"}
-               </div>
-                <p className="text-[11px] text-slate-400 italic">
-                  {paymentMethod === "Online" ? "Our agent will provide a QR code at delivery for secure payment." : "Please keep the amount ready for Cash on Delivery. Our agent will verify the quality before payment."}
-                </p>
+              <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                {paymentMethod === "Online" ? "Payment Initiated" : "Payment Pending"}
+              </div>
+              <p className="text-[11px] text-slate-400 italic">
+                {paymentMethod === "Online" ? "Our agent will provide a QR code at delivery for secure payment." : "Please keep the amount ready for Cash on Delivery. Our agent will verify the quality before payment."}
+              </p>
             </div>
           </div>
 
@@ -196,7 +224,7 @@ export default function OrderPage() {
                           <button type="button" onClick={() => updateCart(product.id, 1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white transition-colors text-slate-400"><Plus size={14} /></button>
                         </div>
                       ) : (
-                        <button 
+                        <button
                           type="button"
                           onClick={() => updateCart(product.id, 1)}
                           className="btn-primary py-2.5 px-5 text-xs font-bold"
@@ -210,7 +238,10 @@ export default function OrderPage() {
               </div>
 
               <div className="card p-7 space-y-6 bg-white">
-                <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400">Delivery Information</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400">Delivery Information</h3>
+                  <LocationButton onLocationSelect={(addr) => setAddress(addr)} />
+                </div>
                 <div className="space-y-5">
                   <div>
                     <label className="label">Address</label>
@@ -243,7 +274,7 @@ export default function OrderPage() {
                   <div>
                     <label className="label">Payment Method</label>
                     <div className="grid grid-cols-2 gap-4">
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setPaymentMethod("Cash on Delivery")}
                         className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${paymentMethod === "Cash on Delivery" ? "border-blue-500 bg-blue-50/50" : "border-slate-100 hover:border-blue-200"}`}
@@ -253,7 +284,7 @@ export default function OrderPage() {
                         </div>
                         <span className={`text-xs font-bold ${paymentMethod === "Cash on Delivery" ? "text-blue-700" : "text-slate-500"}`}>Cash on Delivery</span>
                       </button>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setPaymentMethod("Online")}
                         className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${paymentMethod === "Online" ? "border-blue-500 bg-blue-50/50" : "border-slate-100 hover:border-blue-200"}`}
@@ -272,7 +303,7 @@ export default function OrderPage() {
             <div className="lg:col-span-5">
               <div className="card p-7 sticky top-28 flex flex-col h-fit bg-white shadow-xl shadow-slate-100">
                 <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400 mb-6">Your Cart</h3>
-                
+
                 <div className="space-y-4 mb-8 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                   <AnimatePresence mode="popLayout">
                     {cartItems.length === 0 ? (
@@ -282,7 +313,7 @@ export default function OrderPage() {
                       </motion.div>
                     ) : (
                       cartItems.map((item) => (
-                        <motion.div 
+                        <motion.div
                           key={item.id}
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -291,7 +322,7 @@ export default function OrderPage() {
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-50">
-                               <img src={item.image} className="w-full h-full object-cover" />
+                              <img src={item.image} className="w-full h-full object-cover" />
                             </div>
                             <div>
                               <div className="text-sm font-bold text-slate-900">{item.name}</div>
@@ -315,17 +346,6 @@ export default function OrderPage() {
                     <span className="text-slate-500">Subtotal</span>
                     <span className="font-bold text-slate-900">₹{subtotal}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Delivery Fee</span>
-                    {deliveryFee === 0 ? <span className="text-emerald-500 font-bold">FREE</span> : <span className="font-bold text-slate-900">₹{deliveryFee}</span>}
-                  </div>
-                  
-                  {hasCans && canQty < 3 && (
-                    <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-start gap-2">
-                      <Info size={14} className="text-blue-600 mt-0.5" />
-                      <p className="text-[10px] text-blue-600 leading-relaxed font-medium">Order {3 - canQty} more cans for FREE delivery!</p>
-                    </div>
-                  )}
                 </div>
 
                 <div className="pt-6 mt-6 flex justify-between items-center border-t border-slate-50">
@@ -333,7 +353,7 @@ export default function OrderPage() {
                   <div className="text-3xl font-bold text-blue-600">₹{total}</div>
                 </div>
 
-                <button 
+                <button
                   type="submit"
                   disabled={cartItems.length === 0}
                   className="btn-primary w-full py-4 mt-8 text-base font-bold shadow-lg shadow-blue-100 disabled:opacity-50 disabled:shadow-none"
@@ -345,6 +365,70 @@ export default function OrderPage() {
           </form>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {showConfirm && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowConfirm(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="card w-full max-w-lg relative z-10 p-8 bg-white shadow-2xl">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4 border border-blue-100">
+                  <Droplets size={32} />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>Confirm Your <span className="aqua-text">Order</span></h2>
+                <p className="text-sm text-slate-500 mt-1">Please review your details before placing the order</p>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Order Items</div>
+                  <div className="space-y-2">
+                    {cartItems.map((item, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className="text-slate-600 font-medium">{item.quantity} × {item.name}</span>
+                        <span className="font-bold text-slate-900">₹{item.price * item.quantity}</span>
+                      </div>
+                    ))}
+                    <div className="pt-2 mt-2 border-t border-slate-200 flex justify-between font-bold">
+                      <span className="text-slate-900">Total Amount</span>
+                      <span className="text-blue-600">₹{total}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><MapPin size={10} /> Delivery Address</div>
+                    <p className="text-xs text-slate-700 font-medium line-clamp-2">{address}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Calendar size={10} /> Schedule</div>
+                    <p className="text-xs text-slate-700 font-medium">{date}</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button disabled={isPlacingOrder} onClick={() => setShowConfirm(false)} className="btn-ghost flex-1 py-4 text-sm">Modify Order</button>
+                  <button 
+                    disabled={isPlacingOrder} 
+                    onClick={() => handleSubmit()} 
+                    className={`btn-primary flex-1 py-4 text-sm font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 ${isPlacingOrder ? 'opacity-70' : ''}`}
+                  >
+                    {isPlacingOrder ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Placing...
+                      </>
+                    ) : (
+                      "Confirm & Place Order"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

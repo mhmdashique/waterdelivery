@@ -67,13 +67,14 @@ interface AuthContextType {
   signin: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   signup: (userData: Omit<User, "id" | "role">, password: string) => Promise<{ success: boolean; message: string }>;
   signout: () => Promise<void>;
-  placeOrder: (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }) => Promise<void>;
+  placeOrder: (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }) => Promise<boolean>;
   createManualOrder: (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => Promise<void>;
   updateOrder: (orderId: string, orderData: Partial<Order>) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
   updateUserProfile: (userData: Partial<User>) => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  refreshData: () => Promise<void>;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   isLoading: boolean;
@@ -139,7 +140,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Profile not found, this can happen immediately after signup
           // before the database trigger has finished.
           console.warn("Profile not found for user, will be created by trigger or on first update.");
-          
+
           // Optional: Fetch user metadata as a temporary fallback
           const { data: { user: authUser } } = await supabase.auth.getUser();
           if (authUser) {
@@ -167,15 +168,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           phone: data.phone,
         };
         setUser(userData);
-        await fetchOrders(userData);
+
+        // Reduce loading time by fetching data in parallel
+        const fetchTasks = [fetchOrders(userData)];
         if (userData.role === 'admin') {
-          await fetchAllData();
+          fetchTasks.push(fetchAllData());
         }
+        await Promise.all(fetchTasks);
       }
     } catch (error) {
-      // Avoid logging empty objects, try to get a useful message
-      const msg = error instanceof Error ? error.message : JSON.stringify(error);
-      console.error("Error fetching profile:", msg);
+      console.error("Error fetching profile:", error instanceof Error ? error.message : error);
     } finally {
       setIsLoading(false);
     }
@@ -183,85 +185,99 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchOrders = async (currentUser: User) => {
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          order_items (*)
-        `)
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false });
+      // Fetch orders and items separately but in parallel for safety and speed
+      const [ordersRes, itemsRes] = await Promise.all([
+        supabase.from('orders').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+        supabase.from('order_items').select('*')
+      ]);
 
-      if (error) throw error;
+      if (ordersRes.error) throw ordersRes.error;
 
-      if (data) {
-        const mappedOrders: Order[] = data.map(o => ({
-          id: o.id,
-          userEmail: currentUser.email,
-          userName: o.user_name,
-          items: o.order_items.map((i: any) => ({
-            id: i.id,
-            name: i.name,
-            quantity: i.quantity,
-            price: i.price
-          })),
-          address: o.address,
-          phone: o.phone,
-          date: o.delivery_date,
-          instructions: o.instructions,
-          status: o.status as OrderStatus,
-          paymentStatus: o.payment_status as PaymentStatus,
-          paymentMethod: o.payment_method as PaymentMethod,
-          total: o.total,
-          cansReturned: o.cans_returned,
-          createdAt: o.created_at,
-        }));
+      if (ordersRes.data) {
+        const itemsData = itemsRes.data || [];
+        const mappedOrders: Order[] = ordersRes.data.map(o => {
+          const orderItems = itemsData.filter(i => i.order_id === o.id);
+          return {
+            id: o.id,
+            userEmail: currentUser.email,
+            userName: o.user_name || currentUser.name,
+            items: orderItems.map((i: any) => ({
+              id: i.product_id || i.id,
+              name: i.name || "Product",
+              quantity: Number(i.quantity || 0),
+              price: Number(i.price || 0)
+            })),
+            address: o.address,
+            phone: o.phone,
+            date: o.delivery_date,
+            instructions: o.instructions,
+            status: o.status as OrderStatus,
+            paymentStatus: o.payment_status as PaymentStatus,
+            paymentMethod: o.payment_method as PaymentMethod,
+            total: o.total,
+            cansReturned: o.cans_returned,
+            createdAt: o.created_at,
+          };
+        });
         setOrders(mappedOrders);
       }
     } catch (error) {
-      console.error("Error fetching orders:", error);
+      console.error("Error fetching orders:", error instanceof Error ? error.message : JSON.stringify(error));
     }
   };
 
   const fetchAllData = async () => {
-    // Admin only: fetch all orders and users
-    const { data: ordersData } = await supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false });
-    const { data: usersData } = await supabase.from('profiles').select('*');
+    try {
+      // Fetch everything in parallel independently to avoid relationship issues
+      const [ordersResult, itemsResult, usersResult] = await Promise.all([
+        supabase.from('orders').select('*').order('created_at', { ascending: false }),
+        supabase.from('order_items').select('*'),
+        supabase.from('profiles').select('*')
+      ]);
 
-    if (ordersData) {
-      const mapped: Order[] = ordersData.map(o => ({
-        id: o.id,
-        userEmail: "", // We'd need to join with profiles to get emails if needed
-        userName: o.user_name,
-        items: o.order_items.map((i: any) => ({
-          id: i.id,
-          name: i.name,
-          quantity: i.quantity,
-          price: i.price
-        })),
-        address: o.address,
-        phone: o.phone,
-        date: o.delivery_date,
-        instructions: o.instructions,
-        status: o.status as OrderStatus,
-        paymentStatus: o.payment_status as PaymentStatus,
-        paymentMethod: o.payment_method as PaymentMethod,
-        total: o.total,
-        cansReturned: o.cans_returned,
-        createdAt: o.created_at,
-      }));
-      setAllOrders(mapped);
-    }
+      if (ordersResult.error) throw ordersResult.error;
 
-    if (usersData) {
-      setAllUsers(usersData.map(u => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role as UserRole,
-        address: u.address,
-        phone: u.phone
-      })));
+      if (ordersResult.data) {
+        const allItems = itemsResult.data || [];
+        const mapped: Order[] = ordersResult.data.map(o => {
+          const orderItems = allItems.filter(i => i.order_id === o.id);
+          return {
+            id: o.id,
+            userEmail: "", 
+            userName: o.user_name || "Unknown Customer",
+            items: orderItems.map((i: any) => ({
+              id: i.product_id || i.id,
+              name: i.name || "Product",
+              quantity: Math.max(1, Number(i.quantity || 0)),
+              price: Number(i.price || 0)
+            })),
+            address: o.address || "No Address",
+            phone: o.phone || "No Phone",
+            date: o.delivery_date,
+            instructions: o.instructions,
+            status: (o.status as OrderStatus) || "Pending",
+            paymentStatus: (o.payment_status as PaymentStatus) || "Unpaid",
+            paymentMethod: (o.payment_method as PaymentMethod) || "Cash on Delivery",
+            total: Number(o.total || 0),
+            cansReturned: Number(o.cans_returned || 0),
+            createdAt: o.created_at,
+          };
+        });
+        setAllOrders(mapped);
+      }
+
+      if (usersResult.data) {
+        setAllUsers(usersResult.data.map(u => ({
+          id: u.id,
+          name: u.name || "Unknown",
+          email: u.email || "",
+          role: (u.role as UserRole) || "user",
+          address: u.address,
+          phone: u.phone
+        })));
+      }
+    } catch (err) {
+      console.error("Critical error in fetchAllData:", err);
     }
   };
 
@@ -283,12 +299,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     });
-    
+
     if (error) {
       if (error.message.toLowerCase().includes("rate limit exceeded")) {
-        return { 
-          success: false, 
-          message: "Email rate limit exceeded. Please wait a few minutes or disable 'Email Confirmation' in your Supabase Auth settings for development." 
+        return {
+          success: false,
+          message: "Email rate limit exceeded. Please wait a few minutes or disable 'Email Confirmation' in your Supabase Auth settings for development."
         };
       }
       return { success: false, message: error.message };
@@ -297,18 +313,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setOrders([]);
-    router.push("/");
+    setIsLoading(true);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setOrders([]);
+      setAllOrders([]);
+      setAllUsers([]);
+      setNotifications([]);
+      toast.success("Signed out successfully");
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Signout error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const placeOrder = async (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }) => {
-    if (!user) return;
+  const placeOrder = async (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }): Promise<boolean> => {
+    if (!user) return false;
 
     const orderId = `ORD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    
-    const { error: orderError } = await supabase.from('orders').insert({
+
+    const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert({
       id: orderId,
       user_id: user.id,
       user_name: user.name,
@@ -318,16 +345,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       instructions: orderData.instructions,
       payment_method: orderData.paymentMethod || "Cash on Delivery",
       total: orderData.total,
-    });
+    }).select().single();
 
     if (orderError) {
       toast.error("Failed to place order: " + orderError.message);
-      return;
+      return false;
     }
+
+    const realOrderId = insertedOrder.id;
 
     const { error: itemsError } = await supabase.from('order_items').insert(
       orderData.items.map(item => ({
-        order_id: orderId,
+        order_id: realOrderId,
         product_id: item.id,
         name: item.name,
         quantity: item.quantity,
@@ -341,67 +370,110 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     toast.success("Order placed successfully!");
     await fetchOrders(user);
+    if (user?.role === 'admin') await fetchAllData();
+    return true;
   };
 
   const createManualOrder = async (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => {
-     // Implementation similar to placeOrder but with explicit user details and status
-     const orderId = `MAN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-     
-     await supabase.from('orders').insert({
-       id: orderId,
-       user_name: orderData.userName,
-       address: orderData.address,
-       phone: orderData.phone,
-       delivery_date: orderData.date,
-       instructions: orderData.instructions,
-       status: 'Confirmed',
-       payment_status: orderData.paymentStatus || 'Unpaid',
-       payment_method: orderData.paymentMethod || 'Cash on Delivery',
-       total: orderData.total,
-       cans_returned: orderData.cansReturned || 0
-     });
+    // Implementation similar to placeOrder but with explicit user details and status
+    const orderId = `MAN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-     await supabase.from('order_items').insert(
-       orderData.items.map(item => ({
-         order_id: orderId,
-         product_id: item.id,
-         name: item.name,
-         quantity: item.quantity,
-         price: item.price
-       }))
-     );
-
-     toast.success("Manual order created!");
-     if (user?.role === 'admin') await fetchAllData();
-  };
-
-  const updateOrder = async (orderId: string, orderData: Partial<Order>) => {
-    const { error } = await supabase.from('orders').update({
-      status: orderData.status,
-      payment_status: orderData.paymentStatus,
-      cans_returned: orderData.cansReturned,
+    const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert({
+      id: orderId,
+      user_id: user.id, // Associate manual order with the admin creator
+      user_name: orderData.userName,
       address: orderData.address,
       phone: orderData.phone,
       delivery_date: orderData.date,
-    }).eq('id', orderId);
+      instructions: orderData.instructions,
+      status: 'Confirmed',
+      payment_status: orderData.paymentStatus || 'Unpaid',
+      payment_method: orderData.paymentMethod || 'Cash on Delivery',
+      total: orderData.total,
+      cans_returned: orderData.cansReturned || 0
+    }).select().single();
 
-    if (error) {
-      toast.error("Update failed: " + error.message);
-    } else {
+    if (orderError) {
+      toast.error("Manual order failed: " + orderError.message);
+      return;
+    }
+
+    const realOrderId = insertedOrder.id;
+
+    await supabase.from('order_items').insert(
+      orderData.items.map(item => ({
+        order_id: realOrderId,
+        product_id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price
+      }))
+    );
+
+    toast.success("Manual order created!");
+    if (user?.role === 'admin') await fetchAllData();
+  };
+
+  const updateOrder = async (orderId: string, orderData: Partial<Order>) => {
+    if (!orderId) {
+      toast.error("Invalid Order ID");
+      return;
+    }
+
+    const payload: any = {};
+    if (orderData.status !== undefined) payload.status = orderData.status;
+    if (orderData.paymentStatus !== undefined) payload.payment_status = orderData.paymentStatus;
+    if (orderData.cansReturned !== undefined) payload.cans_returned = orderData.cansReturned;
+    if (orderData.address !== undefined) payload.address = orderData.address;
+    if (orderData.phone !== undefined) payload.phone = orderData.phone;
+    if (orderData.date !== undefined) payload.delivery_date = orderData.date;
+    if (orderData.total !== undefined) payload.total = orderData.total;
+
+    if (Object.keys(payload).length === 0) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(payload)
+        .eq('id', orderId)
+        .select();
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("Order not found or you don't have permission to update it.");
+      }
+
       toast.success("Order updated!");
-      if (user) await fetchOrders(user);
-      if (user?.role === 'admin') await fetchAllData();
+      
+      // Force immediate refresh
+      if (user?.role === 'admin') {
+        await fetchAllData();
+      } else if (user) {
+        await fetchOrders(user);
+      }
+    } catch (error: any) {
+      console.error("Update failed:", error);
+      toast.error("Update failed: " + (error.message || "Unknown error"));
     }
   };
 
   const deleteOrder = async (orderId: string) => {
-    const { error } = await supabase.from('orders').delete().eq('id', orderId);
-    if (error) {
-      toast.error("Delete failed: " + error.message);
-    } else {
+    try {
+      // 1. Delete items first (mandatory if no ON DELETE CASCADE)
+      const { error: itemsError } = await supabase.from('order_items').delete().eq('order_id', orderId);
+      if (itemsError) throw itemsError;
+
+      // 2. Delete the order
+      const { error: orderError } = await supabase.from('orders').delete().eq('id', orderId);
+      if (orderError) throw orderError;
+
       toast.success("Order deleted");
-      if (user) await fetchOrders(user);
       if (user?.role === 'admin') await fetchAllData();
+      else if (user) await fetchOrders(user);
+    } catch (error: any) {
+      console.error("Delete failed:", error);
+      toast.error("Delete failed: " + (error.message || "Unknown error"));
     }
   };
 
@@ -459,6 +531,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         updateUserProfile,
         resetPassword,
         updateOrderStatus,
+        refreshData: fetchAllData,
         markNotificationRead,
         markAllNotificationsRead,
         isLoading,

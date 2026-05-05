@@ -153,14 +153,19 @@ export default function LandingPage() {
       price: 60,
       unit: "can",
       image: "20L can water.jpg",
+      badge: "Most Popular",
+      accent: "from-blue-600 to-cyan-500",
+      features: ["BIS Certified", "Reusable Can", "Free Delivery 3+"],
     },
     {
       name: "1L Bottle Case",
-      price: 240,
+      price: 120,
       unit: "case (12)",
       popular: true,
       image: "Buk 1L image.jpg",
-
+      badge: "Best Value",
+      accent: "from-indigo-600 to-blue-500",
+      features: ["12 Bottles", "Sealed Fresh", "Easy Carry"],
     },
   ];
 
@@ -250,33 +255,61 @@ export default function LandingPage() {
             </div>
           </FadeUp>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {products.map((product, i) => (
-              <FadeUp key={i} delay={i * 0.1}>
-                <div className="card p-0 overflow-hidden flex flex-col group h-full">
-                  <div className="h-64 relative overflow-hidden">
-                    <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent" />
-                    {product.popular && (
-                      <div className="absolute top-4 right-4 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider text-white bg-blue-600 shadow-xl">
-                        Best Seller
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-8 flex flex-col items-center text-center flex-1">
-                    <h3 className="text-2xl font-bold mb-3 text-slate-900">{product.name}</h3>
-                    <div className="flex items-baseline justify-center gap-1 mb-6">
-                      <span className="text-4xl font-bold text-slate-900">₹{product.price}</span>
-                      <span className="text-slate-500 text-sm">/ {product.unit}</span>
+          <div className="flex justify-center">
+            <div className="grid md:grid-cols-2 gap-8 max-w-4xl w-full">
+              {products.map((product, i) => (
+                <FadeUp key={i} delay={i * 0.15}>
+                  <div className="relative rounded-[2rem] overflow-hidden group h-[480px] cursor-pointer shadow-2xl">
+                    {/* Background image */}
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                    {/* Dark gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/70 to-slate-900/20" />
+                    {/* Accent glow */}
+                    <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${product.accent} opacity-80`} />
+
+                    {/* Badge */}
+                    <div className="absolute top-5 left-5">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-white bg-gradient-to-r ${product.accent} shadow-lg`}>
+                        {product.badge}
+                      </span>
                     </div>
-                    
-                    <Link href="/order" className="btn-primary w-full py-4 text-sm font-bold tracking-widest uppercase">
-                      Order Now
-                    </Link>
+
+                    {/* Content */}
+                    <div className="absolute bottom-0 left-0 right-0 p-7">
+                      {/* Glass pill features */}
+                      <div className="flex gap-2 mb-5 flex-wrap">
+                        {product.features.map((f, j) => (
+                          <span key={j} className="px-2.5 py-1 rounded-full text-[10px] font-bold text-white/80 bg-white/10 backdrop-blur-md border border-white/10">
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+
+                      <h3 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: "var(--font-syne)" }}>
+                        {product.name}
+                      </h3>
+
+                      <div className="flex items-end justify-between mt-4">
+                        <div>
+                          <span className="text-5xl font-bold text-white">₹{product.price}</span>
+                          <span className="text-white/50 text-sm ml-1">/ {product.unit}</span>
+                        </div>
+                        <Link
+                          href="/order"
+                          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r ${product.accent} shadow-lg hover:opacity-90 transition-opacity`}
+                        >
+                          Order <ArrowRight size={15} />
+                        </Link>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </FadeUp>
-            ))}
+                </FadeUp>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -349,8 +382,8 @@ export default function LandingPage() {
                 <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&w=800&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Modern Flats" />
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors duration-500" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center">
-                   <h4 className="text-lg font-bold mb-1 text-white">Modern Flats</h4>
-                   <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Residential</p>
+                  <h4 className="text-lg font-bold mb-1 text-white">Modern Flats</h4>
+                  <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Residential</p>
                 </div>
               </div>
             </FadeUp>
@@ -361,8 +394,8 @@ export default function LandingPage() {
                 <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Gymnasium" />
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors duration-500" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center">
-                   <h4 className="text-lg font-bold mb-1 text-white">Gyms</h4>
-                   <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Fitness</p>
+                  <h4 className="text-lg font-bold mb-1 text-white">Gyms</h4>
+                  <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Fitness</p>
                 </div>
               </div>
             </FadeUp>
@@ -373,8 +406,8 @@ export default function LandingPage() {
                 <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=800&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Schools" />
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors duration-500" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center">
-                   <h4 className="text-lg font-bold mb-1 text-white">Primary Schools</h4>
-                   <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Education</p>
+                  <h4 className="text-lg font-bold mb-1 text-white">Primary Schools</h4>
+                  <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Education</p>
                 </div>
               </div>
             </FadeUp>
