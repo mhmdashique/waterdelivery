@@ -35,6 +35,7 @@ export default function OrderPage() {
 
   const [cart, setCart] = useState<Record<string, number>>({});
   const [address, setAddress] = useState("");
+  const [landmark, setLandmark] = useState("");
   const [phone, setPhone] = useState("");
   const [date, setDate] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -111,6 +112,7 @@ export default function OrderPage() {
           price: item.price
         })),
         address,
+        landmark,
         phone,
         date,
         instructions,
@@ -248,6 +250,13 @@ export default function OrderPage() {
                     <div className="relative">
                       <textarea rows={2} required value={address} onChange={(e) => setAddress(e.target.value)} className="input-field pl-11 resize-none" placeholder="Full delivery address" />
                       <MapPin className="absolute left-3.5 top-3.5 text-slate-300" size={16} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label">Landmark</label>
+                    <div className="relative">
+                      <input type="text" value={landmark} onChange={(e) => setLandmark(e.target.value)} className="input-field pl-11" placeholder="E.g. Near Big Temple, Next to Hospital" />
+                      <Info className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                     </div>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-5">
@@ -397,6 +406,10 @@ export default function OrderPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-2">
+                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Info size={10} /> Landmark</div>
+                    <p className="text-xs text-slate-700 font-medium">{landmark || "No landmark specified"}</p>
+                  </div>
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                     <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><MapPin size={10} /> Delivery Address</div>
                     <p className="text-xs text-slate-700 font-medium line-clamp-2">{address}</p>

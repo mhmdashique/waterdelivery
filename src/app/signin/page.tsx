@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { Droplets, Eye, EyeOff, AlertCircle, CheckCircle2, X, Mail, Lock, ArrowRight } from "lucide-react";
+import { Droplets, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { LoadingScreen } from "@/components/LoadingScreen";
 
@@ -16,11 +16,6 @@ export default function SignInPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [resetEmail, setResetEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const { signin, resetPassword, user, isLoading } = useAuth();
   const router = useRouter();
@@ -49,22 +44,7 @@ export default function SignInPage() {
     }
   };
 
-  const handleResetSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const result = await resetPassword(resetEmail);
-      if (result.success) {
-        toast.success("Password reset email sent!");
-        setIsResetModalOpen(false);
-        setResetEmail("");
-      } else {
-        toast.error(result.message);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+
 
   if (isLoading) return <LoadingScreen message="Checking session..." />;
 
@@ -123,9 +103,9 @@ export default function SignInPage() {
                 </button>
               </div>
               <div className="flex justify-end mt-2">
-                <button type="button" onClick={() => setIsResetModalOpen(true)} className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors">
+                <Link href="/forgot-password" className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors">
                   Forgot Password?
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -157,48 +137,7 @@ export default function SignInPage() {
         
       </motion.div>
 
-      <AnimatePresence>
-        {isResetModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsResetModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="card w-full max-w-md relative z-10 p-8 bg-white"
-            >
-              <button onClick={() => setIsResetModalOpen(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-600 transition-colors">
-                <X size={24} />
-              </button>
-              <h2 className="text-2xl font-bold mb-1 text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>Reset <span className="aqua-text">Password</span></h2>
-              <p className="text-slate-500 text-sm mb-8">Enter your details to create a new password</p>
-              <form onSubmit={handleResetSubmit} className="space-y-5">
-                <div>
-                  <label className="label">Email Address</label>
-                  <div className="relative">
-                    <input type="email" required value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="you@email.com" className="input-field pl-11" />
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                  </div>
-                </div>
-                <button 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  className="btn-primary w-full py-4 mt-2 font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    "Send Reset Link"
-                  )}
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+
     </div>
   );
 }

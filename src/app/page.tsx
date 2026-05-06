@@ -243,7 +243,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══════════════════ PRODUCTS ═══════════════════ */}
-      <section className="py-28 relative section-bg">
+      <section id="products" className="py-28 relative section-bg">
         <div className="container mx-auto px-6">
           <FadeUp>
             <div className="text-center mb-16">

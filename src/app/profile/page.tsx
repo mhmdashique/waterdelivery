@@ -5,7 +5,8 @@ import { useAuth, Order, User } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import {
   MapPin, Phone, Package, Calendar, Droplets, Edit2, X, CheckCircle2,
-  Mail, Settings, ShoppingBag, ArrowRight,
+  Mail, Settings, ShoppingBag, ArrowRight, Clock, ChevronRight, User as UserIcon,
+  LogOut, Star, RefreshCcw
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,7 +14,7 @@ import { toast } from "sonner";
 import { LoadingScreen } from "@/components/LoadingScreen";
 
 export default function ProfilePage() {
-  const { user, orders, isLoading, updateOrder, updateUserProfile } = useAuth();
+  const { user, orders, isLoading, updateOrder, updateUserProfile, signout } = useAuth();
   const router = useRouter();
 
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -62,245 +63,333 @@ export default function ProfilePage() {
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateUserProfile(profileData);
-    setIsProfileModalOpen(false);
+    const loadingToast = toast.loading("Updating your profile...");
+    const success = await updateUserProfile(profileData);
+    toast.dismiss(loadingToast);
+    if (success) {
+      toast.success("Profile updated successfully!");
+      setIsProfileModalOpen(false);
+    } else {
+      toast.error("Failed to update profile.");
+    }
   };
 
-  if (isLoading) return <LoadingScreen message="Loading your profile..." />;
-  if (!user) return <LoadingScreen message="Redirecting to sign in..." />;
+  if (isLoading) return <LoadingScreen message="Accessing your command center..." />;
+  if (!user) return <LoadingScreen message="Redirecting to secure login..." />;
 
-  const pendingCount = orders.filter((o) => o.status === "Pending").length;
-  const deliveredCount = orders.filter((o) => o.status === "Delivered").length;
+  const activeOrders = orders.filter((o) => o.status !== "Delivered");
+  const deliveredOrders = orders.filter((o) => o.status === "Delivered");
+  
+  const totalSpend = orders.reduce((acc, curr) => acc + curr.total, 0);
+  const totalCans = orders.reduce((acc, curr) => {
+    const cansFromItems = curr.items?.find(i => i.id === 'can-20l')?.quantity || 0;
+    const legacyCans = curr.cans || 0;
+    return acc + legacyCans + cansFromItems;
+  }, 0);
 
   return (
-    <div className="min-h-screen water-bg pt-32 pb-12">
-      <div className="container mx-auto px-6 max-w-5xl">
-        {/* ─── Profile Header ─── */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card p-0 overflow-hidden mb-10 bg-white shadow-xl shadow-slate-100">
-          <div className="h-28 relative bg-gradient-to-r from-blue-600/10 to-blue-400/5">
-            <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 70% 50%, rgba(0,132,255,0.05), transparent 70%)" }} />
-          </div>
-
-          <div className="px-8 pb-8">
-            <div className="flex flex-col md:flex-row gap-6 items-center -mt-12 relative z-10">
-              <div
-                className="w-24 h-24 rounded-[2rem] flex items-center justify-center text-white text-3xl font-bold shrink-0 bg-gradient-to-br from-blue-600 to-blue-400 shadow-xl shadow-blue-200 border-4 border-white"
-              >
-                {user.name.split(" ").map((n) => n[0]).join("")}
+    <div className="min-h-screen water-bg pb-20 pt-28 lg:pt-32">
+      <div className="container mx-auto px-6 max-w-6xl">
+        {/* ─── Immersive Header ─── */}
+        <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-[10px] font-black uppercase tracking-widest text-blue-600">
+                Customer Portal
               </div>
-
-              <div className="flex-1 text-center md:text-left mt-2">
-                <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 mb-1">
-                  <h1 className="text-2xl font-bold text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>{user.name}</h1>
-                  <button
-                    onClick={() => setIsProfileModalOpen(true)}
-                    className="p-1.5 rounded-lg bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all border border-slate-100"
-                  >
-                    <Settings size={14} />
-                  </button>
-                </div>
-                <p className="text-sm text-slate-500 font-medium">{user.email}</p>
-              </div>
-
-              <div className="flex gap-4 mt-4 md:mt-0 shrink-0">
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-center">
-                  <div className="text-xl font-bold text-slate-900">{orders.length}</div>
-                  <div className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Total</div>
-                </div>
-                <div className="bg-amber-50 border border-amber-100 rounded-2xl px-5 py-3 text-center">
-                  <div className="text-xl font-bold text-amber-600">{pendingCount}</div>
-                  <div className="text-[9px] uppercase tracking-widest text-amber-400 font-bold">Pending</div>
-                </div>
-                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl px-5 py-3 text-center">
-                  <div className="text-xl font-bold text-emerald-600">{deliveredCount}</div>
-                  <div className="text-[9px] uppercase tracking-widest text-emerald-400 font-bold">Done</div>
-                </div>
-              </div>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">System Online</span>
             </div>
+            <h1 className="text-4xl lg:text-5xl font-black text-slate-900 font-syne leading-tight">
+              Welcome back, <br />
+              <span className="aqua-text">{user.name.split(' ')[0]}</span>
+            </h1>
+          </motion.div>
 
-            <div className="flex flex-wrap justify-center md:justify-start gap-6 text-sm text-slate-500 mt-8 pt-8 border-t border-slate-50">
-              <span className="flex items-center gap-2 font-medium"><MapPin size={16} className="text-blue-500" /> {user.address || "No address set"}</span>
-              <span className="flex items-center gap-2 font-medium"><Phone size={16} className="text-blue-500" /> {user.phone || "No phone set"}</span>
-            </div>
-          </div>
-        </motion.div>
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="p-4 bg-white border border-slate-100 rounded-2xl text-slate-400 hover:text-blue-600 transition-all hover:scale-105 shadow-sm"
+            >
+              <Settings size={20} />
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm("Are you sure you want to log out?")) {
+                  signout();
+                }
+              }}
+              className="px-6 py-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 font-bold text-sm flex items-center gap-3 hover:bg-rose-100 transition-all hover:scale-105 shadow-sm"
+            >
+              <LogOut size={18} /> Logout
+            </button>
+          </motion.div>
+        </header>
 
-        {/* ─── Orders ─── */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3" style={{ fontFamily: "var(--font-syne)" }}>
-              <Package className="text-blue-600" size={24} /> Order History
-            </h2>
-            <Link href="/order" className="btn-primary py-3 px-6 text-sm shadow-lg shadow-blue-100">
-              New Order <ArrowRight size={16} />
-            </Link>
-          </div>
-
-          {orders.length === 0 ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card p-20 text-center bg-white shadow-xl shadow-slate-100">
-              <ShoppingBag size={56} className="mx-auto mb-6 text-slate-200" />
-              <h3 className="text-xl font-bold text-slate-900 mb-3">No orders found</h3>
-              <p className="text-sm text-slate-500 max-w-xs mx-auto mb-8">Ready to stay hydrated? Place your first water delivery order now.</p>
-              <Link href="/order" className="btn-primary px-8 py-4">Get Started</Link>
+        {/* ─── Stats Overview ─── */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+          {[
+            { label: "Active Orders", value: activeOrders.length, icon: <Package size={20} />, color: "text-blue-600", bg: "bg-blue-50" },
+            { label: "Cans Delivered", value: totalCans, icon: <Droplets size={20} />, color: "text-cyan-600", bg: "bg-cyan-50" },
+            { label: "Delivered", value: deliveredOrders.length, icon: <CheckCircle2 size={20} />, color: "text-emerald-600", bg: "bg-emerald-50" },
+            { label: "Total Value", value: `₹${totalSpend}`, icon: <Star size={20} />, color: "text-amber-600", bg: "bg-amber-50" },
+          ].map((stat, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="bg-white p-6 rounded-[2rem] border border-slate-50 shadow-sm shadow-slate-100 flex flex-col gap-4"
+            >
+              <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center`}>
+                {stat.icon}
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 font-syne">{stat.value}</div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{stat.label}</div>
+              </div>
             </motion.div>
-          ) : (
+          ))}
+        </section>
+
+        {/* ─── Main Content Grid ─── */}
+        <div className="grid lg:grid-cols-12 gap-8 items-start">
+          {/* Order Queue */}
+          <div className="lg:col-span-8 space-y-6">
+            <div className="flex items-center justify-between px-2">
+              <h3 className="text-xl font-black text-slate-900 font-syne">Your Hydration Queue</h3>
+              <Link href="/order" className="text-blue-600 text-xs font-black uppercase tracking-widest flex items-center gap-2 group">
+                New Order <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+
             <div className="space-y-4">
-              {orders.map((order, idx) => (
-                <motion.div
-                  key={order.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="card p-6 bg-white hover:border-blue-200 transition-all shadow-lg shadow-slate-100/50"
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                    <div className="flex items-center gap-4 min-w-[220px]">
-                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600 border border-blue-100">
-                        <Droplets size={20} />
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-mono text-slate-400 mb-0.5 tracking-wider">{order.id}</div>
-                        <div className="font-bold text-slate-900 flex items-center gap-2">
-                           {order.total > 0 ? `₹${order.total}` : "Free Delivery"}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${order.paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-amber-50 text-amber-600 border border-amber-100"}`}>
-                            {order.paymentStatus}
-                          </span>
-                          <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                            <ShoppingBag size={10} /> {order.paymentMethod}
-                          </span>
-                        </div>
-                      </div>
+              <AnimatePresence mode="popLayout">
+                {orders.length === 0 ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-[3rem] p-20 text-center border border-dashed border-slate-200">
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <Droplets size={32} className="text-slate-200" />
                     </div>
-
-                    <div className="flex-1 space-y-3">
-                      <div className="flex flex-wrap gap-2">
-                        {order.items && order.items.length > 0 ? (
-                          order.items.map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-xl border border-blue-100 text-[10px] font-bold">
-                              <span className="w-4 h-4 rounded bg-blue-600 text-white flex items-center justify-center text-[8px]">{item.quantity}</span>
-                              {item.name}
+                    <h4 className="text-xl font-bold text-slate-900 mb-2">No orders found</h4>
+                    <p className="text-sm text-slate-400 max-w-xs mx-auto mb-8">Start your journey with AquaDrop by placing your first order.</p>
+                    <Link href="/order" className="btn-primary py-4 px-10">Start Hydration</Link>
+                  </motion.div>
+                ) : (
+                  orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((order, i) => (
+                    <motion.div
+                      key={order.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="bg-white rounded-[2.5rem] p-7 border border-slate-50 shadow-sm hover:shadow-xl hover:shadow-slate-100 transition-all group"
+                    >
+                      <div className="flex flex-col md:flex-row justify-between gap-6">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-4">
+                            <span className="font-mono text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-widest">
+                              #{order.id.slice(-8).toUpperCase()}
+                            </span>
+                            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                              order.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600' :
+                              order.status === 'Confirmed' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
+                            }`}>
+                              {order.status}
                             </div>
-                          ))
-                        ) : (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 text-slate-600 rounded-xl border border-slate-100 text-[10px] font-bold">
-                            <span className="w-4 h-4 rounded bg-slate-400 text-white flex items-center justify-center text-[8px]">{order.cans || 0}</span>
-                            Standard Can
+                            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                              order.paymentStatus === 'Paid' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'
+                            }`}>
+                              {order.paymentStatus}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                      <div className="grid sm:grid-cols-2 gap-4 text-sm text-slate-500">
-                        <div className="flex items-center gap-2 font-medium"><Calendar size={15} className="text-slate-300" /> {order.date}</div>
-                        <div className="flex items-center gap-2 font-medium line-clamp-1"><MapPin size={15} className="text-slate-300" /> {order.address}</div>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-4 shrink-0">
-                      <span className={`status-badge status-${order.status.toLowerCase()}`}>{order.status}</span>
-                      {order.status === "Pending" && (
-                        <button
-                          onClick={() => handleEditClick(order)}
-                          className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all border border-slate-100"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                      )}
+                          <div className="flex flex-wrap gap-2 mb-6">
+                            {order.items?.map((item, idx) => (
+                              <div key={idx} className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl text-[11px] font-bold text-slate-600 border border-slate-100">
+                                <span className="text-blue-600">{item.quantity}×</span> {item.name}
+                              </div>
+                            ))}
+                            {!order.items && (
+                              <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl text-[11px] font-bold text-slate-600 border border-slate-100">
+                                <span className="text-blue-600">{order.cans}×</span> Water Can
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                            <div className="space-y-1">
+                              <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1.5"><Calendar size={10} /> Ordered on</div>
+                              <div className="text-xs font-bold text-slate-700">{new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1.5"><MapPin size={10} /> Destination</div>
+                              <div className="text-xs font-bold text-slate-700 truncate max-w-[150px]">{order.address}</div>
+                            </div>
+                            <div className="space-y-1 md:text-right">
+                              <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Order Total</div>
+                              <div className="text-lg font-black text-slate-900 font-syne">₹{order.total}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-row md:flex-col justify-end gap-2 border-t md:border-t-0 md:border-l border-slate-50 pt-6 md:pt-0 md:pl-6 shrink-0">
+                          <button
+                            onClick={() => handleEditClick(order)}
+                            disabled={order.status !== 'Pending'}
+                            className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+                              order.status === 'Pending' ? 'bg-slate-900 text-white hover:bg-blue-600' : 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                            }`}
+                          >
+                            <Edit2 size={14} /> Edit
+                          </button>
+                          <Link
+                            href="/order"
+                            className="flex-1 md:flex-none px-6 py-3 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
+                          >
+                            <RefreshCcw size={14} /> Reorder
+                          </Link>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* User Profile Card */}
+          <div className="lg:col-span-4 sticky top-28 space-y-6">
+            <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm shadow-slate-100 overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50" />
+              
+              <div className="relative z-10">
+                <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl font-black mb-6 shadow-xl shadow-blue-100">
+                  {user.name.split(' ').map(n => n[0]).join('')}
+                </div>
+                
+                <h3 className="text-2xl font-black text-slate-900 font-syne mb-1">{user.name}</h3>
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-8">
+                  <Mail size={12} /> {user.email}
+                </div>
+
+                <div className="space-y-6 pt-6 border-t border-slate-50">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                      <Phone size={18} />
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5">Primary Contact</div>
+                      <div className="text-sm font-bold text-slate-700">{user.phone || "Not linked"}</div>
                     </div>
                   </div>
-                </motion.div>
-              ))}
+
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                      <MapPin size={18} />
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5">Default Location</div>
+                      <div className="text-sm font-bold text-slate-700 leading-relaxed">{user.address || "Pending setup"}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="w-full mt-10 py-4 bg-blue-600 text-white hover:bg-blue-700 transition-all rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
+                >
+                  Edit Profile Details
+                </button>
+              </div>
             </div>
-          )}
+
+            {/* Quick Tips */}
+            <div className="bg-gradient-to-br from-blue-600 to-blue-400 rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-100 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:rotate-12 transition-transform duration-500">
+                <Droplets size={100} />
+              </div>
+              <h4 className="text-xl font-black font-syne mb-2 relative z-10">Stay Hydrated</h4>
+              <p className="text-sm text-blue-50/80 leading-relaxed mb-6 relative z-10">Drinking 3L of mineral water daily boosts metabolism and skin health.</p>
+              <button className="w-full py-4 bg-white/20 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/30 transition-all relative z-10">
+                Learn More
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* ─── Profile Update Modal ─── */}
       <AnimatePresence>
         {isProfileModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsProfileModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="card w-full max-w-md relative z-10 p-8 bg-white">
-              <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><X size={24} /></button>
-              <h2 className="text-2xl font-bold mb-8 text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>Edit <span className="aqua-text">Profile</span></h2>
-              <form onSubmit={handleProfileSubmit} className="space-y-5">
-                <div><label className="label">Name</label><input type="text" required value={profileData.name || ""} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} className="input-field" /></div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="label">Email</label><input type="email" required value={profileData.email || ""} onChange={(e) => setProfileData({ ...profileData, email: e.target.value })} className="input-field" /></div>
-                  <div><label className="label">Phone</label><input type="tel" required value={profileData.phone || ""} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} className="input-field" /></div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onClick={() => setIsProfileModalOpen(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="relative bg-white rounded-[3.5rem] shadow-2xl w-full max-w-xl overflow-hidden">
+              <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                <div>
+                  <h2 className="text-3xl font-black text-slate-900 font-syne mb-1">Secure Profile</h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Manage your personal encryption details</p>
                 </div>
-                <div><label className="label">Address</label><textarea required rows={2} value={profileData.address || ""} onChange={(e) => setProfileData({ ...profileData, address: e.target.value })} className="input-field resize-none" /></div>
-                <button className="btn-primary w-full py-4 mt-4 font-bold shadow-lg shadow-blue-100">Save Changes</button>
+                <button onClick={() => setIsProfileModalOpen(false)} className="p-4 bg-white rounded-3xl text-slate-400 hover:text-slate-600 shadow-sm border border-slate-100 transition-all"><X size={24} /></button>
+              </div>
+
+              <form onSubmit={handleProfileSubmit} className="p-10 space-y-6">
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Identity</label>
+                    <input type="text" value={profileData.name} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} className="input-field py-4" placeholder="Full name" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contact Link</label>
+                    <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} className="input-field py-4" placeholder="Phone number" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Physical Location</label>
+                  <textarea rows={3} value={profileData.address} onChange={(e) => setProfileData({ ...profileData, address: e.target.value })} className="input-field py-4 resize-none" placeholder="Default delivery address" />
+                </div>
+
+                <div className="pt-6">
+                  <button type="submit" className="btn-primary w-full py-5 rounded-[2rem] text-sm font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-100">
+                    Synchronize Profile
+                  </button>
+                </div>
               </form>
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
         {isEditModalOpen && editingOrder && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="card w-full max-w-md relative z-10 p-8 bg-white">
-              <button onClick={() => setIsEditModalOpen(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><X size={24} /></button>
-              <h2 className="text-2xl font-bold mb-8 text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>Edit <span className="aqua-text">Order</span></h2>
-              <form onSubmit={handleEditSubmit} className="space-y-5">
-                <div className="space-y-4">
-                  <label className="label">Order Items</label>
-                  <div className="space-y-3">
-                    {editingOrder.items?.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-xs font-bold text-slate-600">{item.name}</span>
-                        <div className="flex items-center gap-3">
-                          <input 
-                            type="number" 
-                            min={1} 
-                            max={50} 
-                            value={item.quantity} 
-                            onChange={(e) => {
-                              const newItems = [...(editingOrder.items || [])];
-                              const newQty = parseInt(e.target.value) || 1;
-                              newItems[idx] = { ...newItems[idx], quantity: newQty };
-                              const newTotal = newItems.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-                              setEditingOrder({ ...editingOrder, items: newItems, total: newTotal });
-                            }} 
-                            className="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center font-bold text-sm" 
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    {(!editingOrder.items || editingOrder.items.length === 0) && (
-                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-xs font-bold text-slate-600">Standard Cans</span>
-                        <input 
-                          type="number" 
-                          min={1} 
-                          value={editingOrder.cans || 1} 
-                          onChange={(e) => {
-                            const cans = parseInt(e.target.value) || 1;
-                            setEditingOrder({ ...editingOrder, cans, total: cans * 60 });
-                          }} 
-                          className="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center font-bold text-sm" 
-                        />
-                      </div>
-                    )}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onClick={() => setIsEditModalOpen(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="relative bg-white rounded-[3.5rem] shadow-2xl w-full max-w-xl overflow-hidden">
+              <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                <div>
+                  <h2 className="text-3xl font-black text-slate-900 font-syne mb-1">Adjust Order</h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Updating Reference: #{editingOrder.id.slice(-8).toUpperCase()}</p>
+                </div>
+                <button onClick={() => setIsEditModalOpen(false)} className="p-4 bg-white rounded-3xl text-slate-400 hover:text-slate-600 shadow-sm border border-slate-100 transition-all"><X size={24} /></button>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="p-10 space-y-6">
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mobile Contact</label>
+                    <input type="tel" value={editingOrder.phone} onChange={(e) => setEditingOrder({ ...editingOrder, phone: e.target.value })} className="input-field py-4" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Schedule Date</label>
+                    <input type="date" value={editingOrder.date} onChange={(e) => setEditingOrder({ ...editingOrder, date: e.target.value })} className="input-field py-4" />
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                   <div><label className="label">Phone</label><input type="tel" required value={editingOrder.phone || ""} onChange={(e) => setEditingOrder({ ...editingOrder, phone: e.target.value })} className="input-field" /></div>
-                   <div><label className="label">Date</label><input type="date" required value={editingOrder.date || ""} onChange={(e) => setEditingOrder({ ...editingOrder, date: e.target.value })} className="input-field" /></div>
-                </div>
-                
-                <div><label className="label">Delivery Address</label><textarea required rows={2} value={editingOrder.address || ""} onChange={(e) => setEditingOrder({ ...editingOrder, address: e.target.value })} className="input-field resize-none" /></div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                   <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Updated Total</div>
-                   <div className="text-3xl font-bold text-blue-600">₹{editingOrder.total}</div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Delivery Endpoint</label>
+                  <textarea rows={3} value={editingOrder.address} onChange={(e) => setEditingOrder({ ...editingOrder, address: e.target.value })} className="input-field py-4 resize-none" />
                 </div>
 
-                <button className="btn-primary w-full py-4 mt-2 font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2">
-                  <CheckCircle2 size={18} /> Save Changes
-                </button>
+                <div className="pt-6">
+                  <button type="submit" className="btn-primary w-full py-5 rounded-[2rem] text-sm font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-100">
+                    Update Dispatch Details
+                  </button>
+                </div>
               </form>
             </motion.div>
           </div>

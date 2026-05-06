@@ -36,6 +36,7 @@ export interface Order {
   productName?: string; // Legacy support
   cans?: number; // Legacy support
   address: string;
+  landmark?: string;
   phone: string;
   date: string;
   instructions?: string;
@@ -71,13 +72,15 @@ interface AuthContextType {
   createManualOrder: (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => Promise<void>;
   updateOrder: (orderId: string, orderData: Partial<Order>) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
-  updateUserProfile: (userData: Partial<User>) => Promise<void>;
+  updateUserProfile: (userData: Partial<User>) => Promise<boolean>;
   resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
+  updatePassword: (password: string) => Promise<{ success: boolean; message: string }>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   refreshData: () => Promise<void>;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   isLoading: boolean;
+  supabase: ReturnType<typeof createClient>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -114,7 +117,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
       if (session?.user) {
         await fetchUserProfile(session.user.id);
       } else {
@@ -128,6 +131,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
+    if (!userId) {
+      console.error("fetchUserProfile called without userId");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -176,8 +185,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         await Promise.all(fetchTasks);
       }
-    } catch (error) {
-      console.error("Error fetching profile:", error instanceof Error ? error.message : error);
+    } catch (error: any) {
+      console.error("Error in fetchUserProfile workflow:", {
+        message: error?.message || "Unknown error",
+        details: error?.details || "",
+        hint: error?.hint || "",
+        code: error?.code || "",
+        full: error
+      });
     } finally {
       setIsLoading(false);
     }
@@ -195,8 +210,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (ordersRes.data) {
         const itemsData = itemsRes.data || [];
-        const mappedOrders: Order[] = ordersRes.data.map(o => {
-          const orderItems = itemsData.filter(i => i.order_id === o.id);
+        const mappedOrders: Order[] = ordersRes.data.map((o: any) => {
+          const orderItems = itemsData.filter((i: any) => i.order_id === o.id);
           return {
             id: o.id,
             userEmail: currentUser.email,
@@ -221,8 +236,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         });
         setOrders(mappedOrders);
       }
-    } catch (error) {
-      console.error("Error fetching orders:", error instanceof Error ? error.message : JSON.stringify(error));
+    } catch (error: any) {
+      console.error("Error in fetchOrders workflow:", {
+        message: error?.message || "Unknown error",
+        details: error?.details || "",
+        code: error?.code || "",
+        full: error
+      });
     }
   };
 
@@ -239,12 +259,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (ordersResult.data) {
         const allItems = itemsResult.data || [];
-        const mapped: Order[] = ordersResult.data.map(o => {
-          const orderItems = allItems.filter(i => i.order_id === o.id);
+        const allProfiles = usersResult.data || [];
+        const mapped: Order[] = ordersResult.data.map((o: any) => {
+          const orderItems = allItems.filter((i: any) => i.order_id === o.id);
+          const profile = allProfiles.find((p: any) => p.id === o.user_id);
           return {
             id: o.id,
-            userEmail: "", 
-            userName: o.user_name || "Unknown Customer",
+            userEmail: profile?.email || "",
+            userName: o.user_name || profile?.name || "Unknown Customer",
             items: orderItems.map((i: any) => ({
               id: i.product_id || i.id,
               name: i.name || "Product",
@@ -267,7 +289,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (usersResult.data) {
-        setAllUsers(usersResult.data.map(u => ({
+        setAllUsers(usersResult.data.map((u: any) => ({
           id: u.id,
           name: u.name || "Unknown",
           email: u.email || "",
@@ -276,8 +298,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           phone: u.phone
         })));
       }
-    } catch (err) {
-      console.error("Critical error in fetchAllData:", err);
+    } catch (error: any) {
+      console.error("Error in fetchAllData workflow:", {
+        message: error?.message || "Unknown error",
+        details: error?.details || "",
+        hint: error?.hint || "",
+        code: error?.code || "",
+        full: error
+      });
     }
   };
 
@@ -340,6 +368,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       user_id: user.id,
       user_name: user.name,
       address: orderData.address,
+      landmark: orderData.landmark,
       phone: orderData.phone,
       delivery_date: orderData.date,
       instructions: orderData.instructions,
@@ -376,7 +405,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const createManualOrder = async (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => {
     if (!user) return;
-    
+
     // Implementation similar to placeOrder but with explicit user details and status
     const orderId = `MAN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
@@ -385,10 +414,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       user_id: user.id, // Associate manual order with the admin creator
       user_name: orderData.userName,
       address: orderData.address,
+      landmark: orderData.landmark,
       phone: orderData.phone,
       delivery_date: orderData.date,
       instructions: orderData.instructions,
-      status: 'Confirmed',
       payment_status: orderData.paymentStatus || 'Unpaid',
       payment_method: orderData.paymentMethod || 'Cash on Delivery',
       total: orderData.total,
@@ -436,6 +465,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (orderData.date !== undefined) payload.delivery_date = orderData.date;
     if (orderData.total !== undefined) payload.total = orderData.total;
     if (orderData.userName !== undefined) payload.user_name = orderData.userName;
+    if (orderData.landmark !== undefined) payload.landmark = orderData.landmark;
 
     try {
       // 1. Update the main order
@@ -454,7 +484,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .from('order_items')
           .delete()
           .eq('order_id', orderId);
-        
+
         if (deleteError) throw deleteError;
 
         // Insert new items
@@ -469,12 +499,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               price: item.price
             }))
           );
-        
+
         if (insertError) throw insertError;
       }
 
       toast.success("Order updated successfully!");
-      
+
       // Force immediate refresh
       if (user?.role === 'admin') {
         await fetchAllData();
@@ -506,8 +536,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const updateUserProfile = async (userData: Partial<User>) => {
-    if (!user) return;
+  const updateUserProfile = async (userData: Partial<User>): Promise<boolean> => {
+    if (!user) return false;
     const { error } = await supabase.from('profiles').update({
       name: userData.name,
       address: userData.address,
@@ -516,16 +546,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (error) {
       toast.error("Profile update failed: " + error.message);
+      return false;
     } else {
-      toast.success("Profile updated!");
       await fetchUserProfile(user.id);
+      return true;
     }
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
     if (error) return { success: false, message: error.message };
     return { success: true, message: "Password reset email sent!" };
+  };
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return { success: false, message: error.message };
+    return { success: true, message: "Password updated successfully!" };
   };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
@@ -559,11 +598,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         deleteOrder,
         updateUserProfile,
         resetPassword,
+        updatePassword,
         updateOrderStatus,
         refreshData: fetchAllData,
         markNotificationRead,
         markAllNotificationsRead,
         isLoading,
+        supabase,
       }}
     >
       {children}
