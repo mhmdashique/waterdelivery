@@ -47,17 +47,27 @@ export const LocationButton = ({ onLocationSelect, className = "" }: LocationBut
         }
       },
       (error) => {
-        console.error("Geolocation error:", error);
+        console.error("Geolocation Error Detail:", {
+          code: error.code,
+          message: error.message
+        });
         setIsLoading(false);
-        if (error.code === 1) {
-          toast.error("Location access denied. Please enable permissions in your browser.");
-        } else if (error.code === 3) {
-          toast.error("Location request timed out. Please try again.");
-        } else {
-          toast.error("Could not determine location. Please enter address manually.");
+        
+        switch (error.code) {
+          case 1:
+            toast.error("Location access denied. Please enable permissions.");
+            break;
+          case 2:
+            toast.error("Location information is unavailable. Try again later.");
+            break;
+          case 3:
+            toast.error("Location request timed out.");
+            break;
+          default:
+            toast.error("Could not determine location. Please enter manually.");
         }
       },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   };
 

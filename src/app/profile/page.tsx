@@ -223,12 +223,12 @@ export default function ProfilePage() {
               <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><X size={24} /></button>
               <h2 className="text-2xl font-bold mb-8 text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>Edit <span className="aqua-text">Profile</span></h2>
               <form onSubmit={handleProfileSubmit} className="space-y-5">
-                <div><label className="label">Name</label><input type="text" required value={profileData.name} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} className="input-field" /></div>
+                <div><label className="label">Name</label><input type="text" required value={profileData.name || ""} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} className="input-field" /></div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="label">Email</label><input type="email" required value={profileData.email} onChange={(e) => setProfileData({ ...profileData, email: e.target.value })} className="input-field" /></div>
-                  <div><label className="label">Phone</label><input type="tel" required value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} className="input-field" /></div>
+                  <div><label className="label">Email</label><input type="email" required value={profileData.email || ""} onChange={(e) => setProfileData({ ...profileData, email: e.target.value })} className="input-field" /></div>
+                  <div><label className="label">Phone</label><input type="tel" required value={profileData.phone || ""} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} className="input-field" /></div>
                 </div>
-                <div><label className="label">Address</label><textarea required rows={2} value={profileData.address} onChange={(e) => setProfileData({ ...profileData, address: e.target.value })} className="input-field resize-none" /></div>
+                <div><label className="label">Address</label><textarea required rows={2} value={profileData.address || ""} onChange={(e) => setProfileData({ ...profileData, address: e.target.value })} className="input-field resize-none" /></div>
                 <button className="btn-primary w-full py-4 mt-4 font-bold shadow-lg shadow-blue-100">Save Changes</button>
               </form>
             </motion.div>
@@ -287,11 +287,11 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                   <div><label className="label">Phone</label><input type="tel" required value={editingOrder.phone} onChange={(e) => setEditingOrder({ ...editingOrder, phone: e.target.value })} className="input-field" /></div>
-                   <div><label className="label">Date</label><input type="date" required value={editingOrder.date} onChange={(e) => setEditingOrder({ ...editingOrder, date: e.target.value })} className="input-field" /></div>
+                   <div><label className="label">Phone</label><input type="tel" required value={editingOrder.phone || ""} onChange={(e) => setEditingOrder({ ...editingOrder, phone: e.target.value })} className="input-field" /></div>
+                   <div><label className="label">Date</label><input type="date" required value={editingOrder.date || ""} onChange={(e) => setEditingOrder({ ...editingOrder, date: e.target.value })} className="input-field" /></div>
                 </div>
                 
-                <div><label className="label">Delivery Address</label><textarea required rows={2} value={editingOrder.address} onChange={(e) => setEditingOrder({ ...editingOrder, address: e.target.value })} className="input-field resize-none" /></div>
+                <div><label className="label">Delivery Address</label><textarea required rows={2} value={editingOrder.address || ""} onChange={(e) => setEditingOrder({ ...editingOrder, address: e.target.value })} className="input-field resize-none" /></div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Updated Total</div>

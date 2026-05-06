@@ -400,6 +400,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
+    if (!insertedOrder) {
+      toast.error("Order created, but items could not be added. Please refresh.");
+      return;
+    }
+
     const realOrderId = insertedOrder.id;
 
     await supabase.from('order_items').insert(
@@ -430,23 +435,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (orderData.phone !== undefined) payload.phone = orderData.phone;
     if (orderData.date !== undefined) payload.delivery_date = orderData.date;
     if (orderData.total !== undefined) payload.total = orderData.total;
-
-    if (Object.keys(payload).length === 0) return;
+    if (orderData.userName !== undefined) payload.user_name = orderData.userName;
 
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .update(payload)
-        .eq('id', orderId)
-        .select();
-
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        throw new Error("Order not found or you don't have permission to update it.");
+      // 1. Update the main order
+      if (Object.keys(payload).length > 0) {
+        const { error } = await supabase
+          .from('orders')
+          .update(payload)
+          .eq('id', orderId);
+        if (error) throw error;
       }
 
-      toast.success("Order updated!");
+      // 2. Update items if provided
+      if (orderData.items && orderData.items.length > 0) {
+        // Delete existing items
+        const { error: deleteError } = await supabase
+          .from('order_items')
+          .delete()
+          .eq('order_id', orderId);
+        
+        if (deleteError) throw deleteError;
+
+        // Insert new items
+        const { error: insertError } = await supabase
+          .from('order_items')
+          .insert(
+            orderData.items.map(item => ({
+              order_id: orderId,
+              product_id: item.id,
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price
+            }))
+          );
+        
+        if (insertError) throw insertError;
+      }
+
+      toast.success("Order updated successfully!");
       
       // Force immediate refresh
       if (user?.role === 'admin') {
