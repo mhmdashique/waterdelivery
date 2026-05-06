@@ -13,12 +13,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { LoadingScreen } from "@/components/LoadingScreen";
 
+const PRODUCTS = [
+  { id: "can-20l", name: "20L Water Can", price: 60 },
+  { id: "bottle-1l-case", name: "1L Bottle Case", price: 240 },
+];
+
 export default function ProfilePage() {
   const { user, orders, isLoading, updateOrder, updateUserProfile, signout } = useAuth();
   const router = useRouter();
 
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileData, setProfileData] = useState<Partial<User>>({
     name: "",
@@ -32,7 +38,12 @@ export default function ProfilePage() {
       router.push("/signin");
     }
     if (user) {
-      setProfileData({ name: user.name, email: user.email, phone: user.phone, address: user.address });
+      setProfileData({ 
+        name: user.name || "", 
+        email: user.email || "", 
+        phone: user.phone || "", 
+        address: user.address || "" 
+      });
     }
   }, [user, isLoading, router]);
 
@@ -48,16 +59,27 @@ export default function ProfilePage() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingOrder) {
-      await updateOrder(editingOrder.id, {
-        items: editingOrder.items,
-        cans: editingOrder.cans,
-        address: editingOrder.address,
-        phone: editingOrder.phone,
-        date: editingOrder.date,
-        total: editingOrder.total,
-      });
-      setIsEditModalOpen(false);
-      setEditingOrder(null);
+      setIsUpdating(true);
+      const tid = toast.loading("Updating your dispatch details...");
+      try {
+        await updateOrder(editingOrder.id, {
+          items: editingOrder.items,
+          address: editingOrder.address,
+          landmark: editingOrder.landmark,
+          phone: editingOrder.phone,
+          date: editingOrder.date,
+          instructions: editingOrder.instructions,
+          total: (editingOrder.items || []).reduce((acc, item) => acc + (item.price * item.quantity), 0),
+        });
+        toast.success("Order updated successfully!", { id: tid });
+        setIsEditModalOpen(false);
+        setEditingOrder(null);
+      } catch (err) {
+        console.error("Edit failed:", err);
+        toast.error("Failed to update order. Please try again.", { id: tid });
+      } finally {
+        setIsUpdating(false);
+      }
     }
   };
 
@@ -79,7 +101,7 @@ export default function ProfilePage() {
 
   const activeOrders = orders.filter((o) => o.status !== "Delivered");
   const deliveredOrders = orders.filter((o) => o.status === "Delivered");
-  
+
   const totalSpend = orders.reduce((acc, curr) => acc + curr.total, 0);
   const totalCans = orders.reduce((acc, curr) => {
     const cansFromItems = curr.items?.find(i => i.id === 'can-20l')?.quantity || 0;
@@ -158,7 +180,7 @@ export default function ProfilePage() {
           <div className="lg:col-span-8 space-y-6">
             <div className="flex items-center justify-between px-2">
               <h3 className="text-xl font-black text-slate-900 font-syne">Your Hydration Queue</h3>
-              <Link href="/order" className="text-blue-600 text-xs font-black uppercase tracking-widest flex items-center gap-2 group">
+              <Link href="/order" className="px-5 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-2 group shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all">
                 New Order <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
@@ -189,15 +211,13 @@ export default function ProfilePage() {
                             <span className="font-mono text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-widest">
                               #{order.id.slice(-8).toUpperCase()}
                             </span>
-                            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                              order.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600' :
-                              order.status === 'Confirmed' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
-                            }`}>
+                            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600' :
+                                order.status === 'Confirmed' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
+                              }`}>
                               {order.status}
                             </div>
-                            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                              order.paymentStatus === 'Paid' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'
-                            }`}>
+                            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.paymentStatus === 'Paid' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'
+                              }`}>
                               {order.paymentStatus}
                             </div>
                           </div>
@@ -235,9 +255,8 @@ export default function ProfilePage() {
                           <button
                             onClick={() => handleEditClick(order)}
                             disabled={order.status !== 'Pending'}
-                            className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
-                              order.status === 'Pending' ? 'bg-slate-900 text-white hover:bg-blue-600' : 'bg-slate-50 text-slate-300 cursor-not-allowed'
-                            }`}
+                            className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${order.status === 'Pending' ? 'bg-slate-900 text-white hover:bg-blue-600' : 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                              }`}
                           >
                             <Edit2 size={14} /> Edit
                           </button>
@@ -260,12 +279,12 @@ export default function ProfilePage() {
           <div className="lg:col-span-4 sticky top-28 space-y-6">
             <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm shadow-slate-100 overflow-hidden relative">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50" />
-              
+
               <div className="relative z-10">
                 <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl font-black mb-6 shadow-xl shadow-blue-100">
                   {user.name.split(' ').map(n => n[0]).join('')}
                 </div>
-                
+
                 <h3 className="text-2xl font-black text-slate-900 font-syne mb-1">{user.name}</h3>
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-8">
                   <Mail size={12} /> {user.email}
@@ -335,16 +354,16 @@ export default function ProfilePage() {
                 <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Identity</label>
-                    <input type="text" value={profileData.name} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} className="input-field py-4" placeholder="Full name" />
+                    <input type="text" value={profileData.name || ""} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} className="input-field py-4" placeholder="Full name" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contact Link</label>
-                    <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} className="input-field py-4" placeholder="Phone number" />
+                    <input type="tel" value={profileData.phone || ""} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} className="input-field py-4" placeholder="Phone number" />
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Physical Location</label>
-                  <textarea rows={3} value={profileData.address} onChange={(e) => setProfileData({ ...profileData, address: e.target.value })} className="input-field py-4 resize-none" placeholder="Default delivery address" />
+                  <textarea rows={3} value={profileData.address || ""} onChange={(e) => setProfileData({ ...profileData, address: e.target.value })} className="input-field py-4 resize-none" placeholder="Default delivery address" />
                 </div>
 
                 <div className="pt-6">
@@ -373,21 +392,94 @@ export default function ProfilePage() {
                 <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mobile Contact</label>
-                    <input type="tel" value={editingOrder.phone} onChange={(e) => setEditingOrder({ ...editingOrder, phone: e.target.value })} className="input-field py-4" />
+                    <input type="tel" value={editingOrder.phone || ""} onChange={(e) => setEditingOrder({ ...editingOrder, phone: e.target.value })} className="input-field py-4" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Schedule Date</label>
-                    <input type="date" value={editingOrder.date} onChange={(e) => setEditingOrder({ ...editingOrder, date: e.target.value })} className="input-field py-4" />
+                    <input type="date" value={editingOrder.date || ""} onChange={(e) => setEditingOrder({ ...editingOrder, date: e.target.value })} className="input-field py-4" />
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Delivery Endpoint</label>
-                  <textarea rows={3} value={editingOrder.address} onChange={(e) => setEditingOrder({ ...editingOrder, address: e.target.value })} className="input-field py-4 resize-none" />
+                  <textarea rows={2} value={editingOrder.address || ""} onChange={(e) => setEditingOrder({ ...editingOrder, address: e.target.value })} className="input-field py-4 resize-none" />
                 </div>
 
-                <div className="pt-6">
-                  <button type="submit" className="btn-primary w-full py-5 rounded-[2rem] text-sm font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-100">
-                    Update Dispatch Details
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Landmark</label>
+                  <input type="text" value={editingOrder.landmark || ""} onChange={(e) => setEditingOrder({ ...editingOrder, landmark: e.target.value })} className="input-field py-4" placeholder="Nearby landmark" />
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center ml-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Items Selection</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newItem = { id: PRODUCTS[0].id, name: PRODUCTS[0].name, quantity: 1, price: PRODUCTS[0].price };
+                        setEditingOrder({ ...editingOrder, items: [...(editingOrder.items || []), newItem] });
+                      }}
+                      className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition-all"
+                    >
+                      + Add Item
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {editingOrder.items?.map((item, idx) => (
+                      <div key={idx} className="flex gap-3 items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <select
+                          className="flex-1 bg-transparent border-none focus:ring-0 font-bold text-slate-700 outline-none text-xs"
+                          value={item.id}
+                          onChange={(e) => {
+                            const p = PRODUCTS.find(p => p.id === e.target.value);
+                            if (!p) return;
+                            const newItems = [...editingOrder.items];
+                            newItems[idx] = { ...newItems[idx], id: p.id, name: p.name, price: p.price };
+                            setEditingOrder({ ...editingOrder, items: newItems });
+                          }}
+                        >
+                          {PRODUCTS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <input
+                          type="number" min={1}
+                          className="w-16 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-center font-bold text-slate-900 text-xs"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const newItems = [...editingOrder.items];
+                            newItems[idx].quantity = parseInt(e.target.value) || 1;
+                            setEditingOrder({ ...editingOrder, items: newItems });
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newItems = [...editingOrder.items];
+                            newItems.splice(idx, 1);
+                            setEditingOrder({ ...editingOrder, items: newItems });
+                          }}
+                          className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Special Instructions</label>
+                  <textarea rows={2} value={editingOrder.instructions || ""} onChange={(e) => setEditingOrder({ ...editingOrder, instructions: e.target.value })} className="input-field py-4 resize-none" placeholder="E.g. Leave at door" />
+                </div>
+
+                <div className="pt-6 flex items-center justify-between">
+                  <div className="text-xl font-black text-slate-900 font-syne">
+                    Total: ₹{(editingOrder.items || []).reduce((acc, item) => acc + (item.price * item.quantity), 0)}
+                  </div>
+                  <button 
+                    type="submit" 
+                    disabled={isUpdating}
+                    className="btn-primary px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isUpdating ? "Updating..." : "Update Dispatch Details"}
                   </button>
                 </div>
               </form>

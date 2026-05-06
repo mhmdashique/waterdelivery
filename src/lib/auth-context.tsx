@@ -223,6 +223,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               price: Number(i.price || 0)
             })),
             address: o.address,
+            landmark: o.landmark,
             phone: o.phone,
             date: o.delivery_date,
             instructions: o.instructions,
@@ -274,6 +275,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               price: Number(i.price || 0)
             })),
             address: o.address || "No Address",
+            landmark: o.landmark,
             phone: o.phone || "No Phone",
             date: o.delivery_date,
             instructions: o.instructions,
@@ -366,18 +368,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert({
       id: orderId,
       user_id: user.id,
-      user_name: user.name,
+      user_name: user.name || user.email.split('@')[0],
       address: orderData.address,
-      landmark: orderData.landmark,
       phone: orderData.phone,
       delivery_date: orderData.date,
       instructions: orderData.instructions,
       payment_method: orderData.paymentMethod || "Cash on Delivery",
       total: orderData.total,
+      ...(orderData.landmark ? { landmark: orderData.landmark } : {}),
     }).select().single();
 
     if (orderError) {
+      console.error("Order insertion error:", orderError);
       toast.error("Failed to place order: " + orderError.message);
+      if (orderError.message.includes("landmark")) {
+        toast.info("Note: The 'landmark' column might be missing in your database. Please run the SQL migration.");
+      }
+      return false;
+    }
+
+    if (!insertedOrder) {
+      toast.error("Order placed, but verification failed. Please check your orders.");
       return false;
     }
 
@@ -421,7 +432,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       payment_status: orderData.paymentStatus || 'Unpaid',
       payment_method: orderData.paymentMethod || 'Cash on Delivery',
       total: orderData.total,
-      cans_returned: orderData.cansReturned || 0
+      cans_returned: orderData.cansReturned || 0,
+      ...(orderData.landmark ? { landmark: orderData.landmark } : {}),
     }).select().single();
 
     if (orderError) {
@@ -465,7 +477,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (orderData.date !== undefined) payload.delivery_date = orderData.date;
     if (orderData.total !== undefined) payload.total = orderData.total;
     if (orderData.userName !== undefined) payload.user_name = orderData.userName;
-    if (orderData.landmark !== undefined) payload.landmark = orderData.landmark;
+    if (orderData.landmark) payload.landmark = orderData.landmark;
+    if (orderData.instructions !== undefined) payload.instructions = orderData.instructions;
 
     try {
       // 1. Update the main order

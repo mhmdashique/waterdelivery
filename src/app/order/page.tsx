@@ -29,6 +29,8 @@ const PRODUCTS = [
   }
 ];
 
+const SUCCESS_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
+
 export default function OrderPage() {
   const { user, placeOrder, isLoading } = useAuth();
   const router = useRouter();
@@ -81,6 +83,16 @@ export default function OrderPage() {
 
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
+  const playSuccessSound = () => {
+    try {
+      const audio = new Audio(SUCCESS_SOUND);
+      audio.volume = 0.5;
+      audio.play();
+    } catch (err) {
+      console.warn("Could not play sound:", err);
+    }
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
@@ -89,8 +101,8 @@ export default function OrderPage() {
       return;
     }
 
-    if (!address.trim() || !phone.trim()) {
-      toast.error("Please provide a delivery address and phone number.");
+    if (!address.trim() || !phone.trim() || !date) {
+      toast.error("Please provide address, phone, and delivery date.");
       setShowConfirm(false);
       return;
     }
@@ -123,17 +135,14 @@ export default function OrderPage() {
       if (success) {
         setIsSubmitted(true);
         setShowConfirm(false);
-        toast.dismiss(loadingToast);
+        playSuccessSound();
         window.scrollTo(0, 0);
-      } else {
-        toast.error("Could not place order. Please check your connection.");
-        toast.dismiss(loadingToast);
       }
     } catch (error) {
       console.error("Submission error:", error);
       toast.error("An unexpected error occurred.");
-      toast.dismiss(loadingToast);
     } finally {
+      toast.dismiss(loadingToast);
       setIsPlacingOrder(false);
     }
   };
@@ -177,7 +186,12 @@ export default function OrderPage() {
 
           <div className="flex gap-4">
             <Link href="/profile" className="btn-ghost flex-1 py-3 text-sm">My Orders</Link>
-            <button onClick={() => { setIsSubmitted(false); setCart({}); }} className="btn-primary flex-1 py-3 text-sm">New Order</button>
+            <button 
+              onClick={() => { setIsSubmitted(false); setCart({}); }} 
+              className="flex-1 py-3 text-sm font-bold rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all"
+            >
+              New Order
+            </button>
           </div>
         </motion.div>
       </div>

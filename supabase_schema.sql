@@ -15,6 +15,7 @@ create table orders (
   user_id uuid references auth.users on delete set null,
   user_name text,
   address text,
+  landmark text,
   phone text,
   delivery_date date,
   instructions text,

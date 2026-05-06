@@ -192,7 +192,7 @@ export default function AdminDashboard() {
             <h1 className="text-3xl lg:text-5xl font-black text-slate-900 font-syne tracking-tight">Admin Dashboard</h1>
             <p className="text-slate-500 font-medium text-sm lg:text-lg max-w-xl leading-relaxed">Welcome back, <span className="text-slate-900 font-bold">{user?.name || 'Administrator'}</span>. Dashboard operational.</p>
           </div>
-          
+
           <button
             onClick={async () => {
               if (window.confirm("Confirm sign out?")) {
@@ -356,7 +356,7 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                           <button onClick={(e) => { e.stopPropagation(); setViewingUser(u); }} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400"><Info size={16} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setViewingUser(u); }} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400"><Info size={16} /></button>
                         </div>
                       </div>
                     </div>
@@ -444,8 +444,8 @@ export default function AdminDashboard() {
                                 value={order.status}
                                 onChange={(e) => handleStatusUpdate(order.id, e.target.value as OrderStatus)}
                                 className={`text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-[1rem] border outline-none cursor-pointer transition-all appearance-none min-w-[120px] text-center ${order.status === 'Delivered' ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-100' :
-                                    order.status === 'Confirmed' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
-                                      'bg-amber-50 text-amber-600 border-amber-100'
+                                  order.status === 'Confirmed' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                    'bg-amber-50 text-amber-600 border-amber-100'
                                   }`}
                               >
                                 <option value="Pending">Pending</option>
@@ -480,9 +480,9 @@ export default function AdminDashboard() {
                             <div className="font-mono text-[10px] font-black text-blue-600 mb-1">#{order.id.slice(-8).toUpperCase()}</div>
                             <div className="font-bold text-slate-900 text-lg">{order.userName}</div>
                             {order.landmark && (
-                                <div className="text-[10px] text-blue-500 font-bold mt-1 flex items-center gap-1">
-                                  <Info size={10} /> {order.landmark}
-                                </div>
+                              <div className="text-[10px] text-blue-500 font-bold mt-1 flex items-center gap-1">
+                                <Info size={10} /> {order.landmark}
+                              </div>
                             )}
                           </div>
                           <div className="flex items-center gap-2">
