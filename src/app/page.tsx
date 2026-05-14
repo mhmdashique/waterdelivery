@@ -31,7 +31,7 @@ const HeroProduct = () => {
   ];
   const productData = [
     { name: "20L Mineral Water", price: "60", unit: "/ per can" },
-    { name: "1L Bottle Case", price: "240", unit: "/ case (12)" },
+    { name: "1L Bottle Case", price: "120", unit: "/ case (12)" },
   ];
   const [index, setIndex] = useState(0);
 
@@ -58,7 +58,7 @@ const HeroProduct = () => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 1, ease: "easeInOut" }}
-            alt="AquaDrop Product"
+            alt="AS AGENCIES Product"
             className="absolute inset-0 w-full h-full object-cover"
           />
         </AnimatePresence>
@@ -170,9 +170,9 @@ export default function LandingPage() {
   ];
 
   const testimonials = [
-    { name: "Priya Menon", role: "Homemaker, Pezhummoodu", image: "https://images.unsplash.com/photo-1589156280159-27698a70f29e?q=80&w=200&auto=format&fit=crop", text: "AquaDrop has made our life so much easier. Pure water delivered right on time, every single week.", rating: 5 },
+    { name: "Priya Menon", role: "Homemaker, Pezhummoodu", image: "https://images.unsplash.com/photo-1589156280159-27698a70f29e?q=80&w=200&auto=format&fit=crop", text: "AS AGENCIES has made our life so much easier. Pure water delivered right on time, every single week.", rating: 5 },
     { name: "Arjun Nair", role: "Software Engineer", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop", text: "The quality of water is excellent and the delivery is always within 2 hours. Highly recommend!", rating: 5 },
-    { name: "Dr. Lakshmi", role: "Pediatrician", image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop", text: "I recommend AquaDrop to all my patients. The BIS certification gives me confidence in the water quality.", rating: 5 },
+    { name: "Dr. Lakshmi", role: "Pediatrician", image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop", text: "I recommend AS AGENCIES to all my patients. The BIS certification gives me confidence in the water quality.", rating: 5 },
   ];
 
   return (
@@ -214,7 +214,7 @@ export default function LandingPage() {
                     Order Now <ArrowRight size={18} />
                   </Link>
                   <Link href="/signup" className="btn-ghost py-3.5 px-8 text-base">
-                    Join AquaDrop
+                    Join AS AGENCIES
                   </Link>
                 </div>
               </FadeUp>
@@ -321,7 +321,7 @@ export default function LandingPage() {
             <div className="text-center mb-16">
               <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-blue-600 mb-4">Why Choose Us</div>
               <h2 className="text-4xl lg:text-5xl font-bold text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>
-                The <span className="aqua-text">AquaDrop</span> Difference
+                The <span className="aqua-text">AS AGENCIES</span> Difference
               </h2>
             </div>
           </FadeUp>
@@ -355,7 +355,7 @@ export default function LandingPage() {
               <h2 className="text-4xl lg:text-5xl font-bold text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>
                 Purity in <span className="aqua-text">Every Space</span>
               </h2>
-              <p className="text-slate-500 max-w-md mx-auto mt-4">AquaDrop is the trusted hydration partner for homes, offices, and fitness centers across TVM.</p>
+              <p className="text-slate-500 max-w-md mx-auto mt-4">AS AGENCIES is the trusted hydration partner for homes, offices, and fitness centers across TVM.</p>
             </div>
           </FadeUp>
 
@@ -544,7 +544,7 @@ export default function LandingPage() {
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-600 text-white shadow-lg shadow-blue-200">
                   <Droplets size={16} />
                 </div>
-                <span className="font-bold text-lg text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>AquaDrop</span>
+                <span className="font-bold text-lg text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>AS AGENCIES</span>
               </div>
               <p className="text-sm text-slate-500 leading-relaxed max-w-xs">Premium mineral water delivery service in Pezhummoodu, TVM, Kerala. Pure water, happy families.</p>
             </div>
@@ -574,7 +574,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="pt-8 text-center text-xs text-slate-400 font-medium" style={{ borderTop: "1px solid rgba(0,0,0,0.05)" }}>
-            © {new Date().getFullYear()} AquaDrop. All rights reserved. Made with 💧 in Pezhummoodu, TVM, Kerala.
+            © {new Date().getFullYear()} AS AGENCIES. All rights reserved. Made with 💧 in Pezhummoodu, TVM, Kerala.
           </div>
         </div>
       </footer>

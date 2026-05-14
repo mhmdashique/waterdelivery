@@ -22,7 +22,7 @@ const PRODUCTS = [
   {
     id: "bottle-1l-case",
     name: "1L Bottle Case",
-    price: 240,
+    price: 120,
     image: "Buk 1L image.jpg",
     desc: "Case of 12 Premium Bottles",
     unit: "Case"
@@ -95,6 +95,7 @@ export default function OrderPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isPlacingOrder) return;
     
     if (cartItems.length === 0) {
       toast.error("Your cart is empty!");
@@ -378,10 +379,10 @@ export default function OrderPage() {
 
                 <button
                   type="submit"
-                  disabled={cartItems.length === 0}
+                  disabled={cartItems.length === 0 || isPlacingOrder}
                   className="btn-primary w-full py-4 mt-8 text-base font-bold shadow-lg shadow-blue-100 disabled:opacity-50 disabled:shadow-none"
                 >
-                  Place Order <ArrowRight size={18} />
+                  {isPlacingOrder ? "Processing..." : <>Place Order <ArrowRight size={18} /></>}
                 </button>
               </div>
             </div>

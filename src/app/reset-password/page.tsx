@@ -21,17 +21,16 @@ export default function ResetPasswordPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if we have a session (Supabase automatically handles the hash/token from the email link)
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        // If no session, the link might be expired or invalid
-        // toast.error("Invalid or expired reset link. Please request a new one.");
-        // router.push("/forgot-password");
+    // Verify user identity for password reset
+    const verifyIdentity = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) {
+        console.log("[ResetPassword] No active recovery session found.");
+        // We don't necessarily redirect here as Supabase might still be processing the hash
       }
     };
-    checkSession();
-  }, [router, supabase]);
+    verifyIdentity();
+  }, [supabase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,8 +54,12 @@ export default function ResetPasswordPage() {
         toast.success("Your password has been updated!");
         setTimeout(() => router.push("/signin"), 3000);
       } else {
-        setError(result.message);
-        toast.error(result.message);
+        let msg = result.message;
+        if (msg.includes("different from the old password")) {
+          msg = "Please choose a password you haven't used before for this account.";
+        }
+        setError(msg);
+        toast.error(msg);
       }
     } finally {
       setIsSubmitting(false);

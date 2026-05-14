@@ -10,13 +10,14 @@ import {
   User as UserIcon, LayoutDashboard, LogOut, X,
   ArrowRight, IndianRupee, Bell, ShieldCheck, Edit2, Info,
   Droplets, RefreshCw, BarChart3, Settings, HelpCircle,
-  TrendingUp, TrendingDown, Layers
+  TrendingUp, TrendingDown, Layers, Download, FileText
 } from "lucide-react";
 import { Order, OrderStatus, PaymentStatus, PaymentMethod } from "@/lib/auth-context";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { LocationButton } from "@/components/LocationButton";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { generateInvoice, exportAllOrders } from "@/utils/pdf-generator";
 
 export default function AdminDashboard() {
   const { user, signout, allOrders, allUsers, updateOrderStatus, createManualOrder, updateOrder, deleteOrder, refreshData, isLoading } = useAuth();
@@ -31,7 +32,7 @@ export default function AdminDashboard() {
 
   const PRODUCTS = [
     { id: "can-20l", name: "20L Water Can", price: 60 },
-    { id: "bottle-1l-case", name: "1L Bottle Case", price: 240 },
+    { id: "bottle-1l-case", name: "1L Bottle Case", price: 120 },
   ];
 
   const [manualOrder, setManualOrder] = useState({
@@ -221,14 +222,12 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2 lg:gap-4 shrink-0">
-            <motion.button
-              whileHover={{ rotate: 180 }}
-              transition={{ duration: 0.5 }}
-              onClick={() => refreshData()}
-              className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-xl lg:rounded-2xl text-slate-400 hover:bg-white hover:text-blue-600 transition-all border border-transparent hover:border-slate-100 shadow-sm"
+            <button
+              onClick={() => exportAllOrders(allOrders)}
+              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-600 px-4 lg:px-8 py-3 lg:py-4 rounded-xl lg:rounded-[1.5rem] text-[10px] lg:text-sm font-bold shadow-sm hover:bg-slate-50 transition-all whitespace-nowrap"
             >
-              <RefreshCw size={20} />
-            </motion.button>
+              <Download size={18} /> <span className="hidden sm:inline">Export PDF</span>
+            </button>
             <button
               onClick={() => setIsModalOpen(true)}
               className="flex items-center gap-2 bg-gradient-to-br from-blue-600 to-indigo-700 text-white px-4 lg:px-8 py-3 lg:py-4 rounded-xl lg:rounded-[1.5rem] text-[10px] lg:text-sm font-bold shadow-xl shadow-blue-200 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap"
@@ -454,11 +453,11 @@ export default function AdminDashboard() {
                               </select>
                             </td>
                             <td className="px-10 py-8 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <button onClick={() => setViewingOrder(order)} className="p-3 bg-white text-slate-400 hover:text-blue-600 rounded-2xl shadow-sm border border-slate-100 hover:border-blue-100 transition-all hover:scale-110"><Info size={18} /></button>
-                                <button onClick={() => setEditingOrder(order)} className="p-3 bg-white text-slate-400 hover:text-indigo-600 rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-100 transition-all hover:scale-110"><Edit2 size={18} /></button>
-                                <button onClick={() => handleDelete(order.id)} className="p-3 bg-white text-slate-400 hover:text-rose-600 rounded-2xl shadow-sm border border-slate-100 hover:border-rose-100 transition-all hover:scale-110"><Trash2 size={18} /></button>
-                              </div>
+                                <div className="flex items-center justify-end gap-2">
+                                  <button onClick={() => setViewingOrder(order)} className="p-3 bg-white text-slate-400 hover:text-blue-600 rounded-2xl shadow-sm border border-slate-100 hover:border-blue-100 transition-all hover:scale-110" title="View Details"><Info size={18} /></button>
+                                  <button onClick={() => setEditingOrder(order)} className="p-3 bg-white text-slate-400 hover:text-indigo-600 rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-100 transition-all hover:scale-110" title="Edit Order"><Edit2 size={18} /></button>
+                                  <button onClick={() => handleDelete(order.id)} className="p-3 bg-white text-slate-400 hover:text-rose-600 rounded-2xl shadow-sm border border-slate-100 hover:border-rose-100 transition-all hover:scale-110" title="Delete Order"><Trash2 size={18} /></button>
+                                </div>
                             </td>
                           </tr>
                         ))

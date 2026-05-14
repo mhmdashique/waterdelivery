@@ -47,8 +47,8 @@ export default function ForgotPasswordPage() {
           <div className="w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center bg-blue-600 shadow-lg shadow-blue-200">
             <Droplets size={26} className="text-white" />
           </div>
-          <h1 className="text-3xl font-bold mb-2 text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>Recover Access</h1>
-          <p className="text-slate-500 text-sm">We'll help you get back into your account</p>
+          <h1 className="text-3xl font-bold mb-2 text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>Security Control</h1>
+          <p className="text-slate-500 text-sm">AS AGENCIES Secure Account Recovery</p>
         </div>
 
         <div className="card p-8 bg-white shadow-2xl shadow-slate-200/50">
@@ -68,10 +68,17 @@ export default function ForgotPasswordPage() {
           ) : (
             <>
               {error && (
-                <div className="mb-6 p-4 rounded-xl flex gap-3 text-sm bg-red-50 border border-red-100 text-red-600">
-                  <AlertCircle className="shrink-0 mt-0.5" size={16} />
-                  <span>{error}</span>
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="mb-6 p-4 rounded-2xl flex gap-3 text-sm bg-rose-50 border border-rose-100 text-rose-600 shadow-sm"
+                >
+                  <AlertCircle className="shrink-0 mt-0.5" size={18} />
+                  <div className="flex flex-col gap-1">
+                    <span className="font-bold">Dispatch Error</span>
+                    <span className="opacity-90">{error}</span>
+                  </div>
+                </motion.div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">

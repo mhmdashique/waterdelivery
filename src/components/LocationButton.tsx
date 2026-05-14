@@ -47,10 +47,7 @@ export const LocationButton = ({ onLocationSelect, className = "" }: LocationBut
         }
       },
       (error) => {
-        console.error("Geolocation Error Detail:", {
-          code: error.code,
-          message: error.message
-        });
+        console.error("Geolocation Error Detail:", error.message || "Unknown error");
         setIsLoading(false);
         
         switch (error.code) {

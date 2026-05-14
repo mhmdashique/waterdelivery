@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import {
   MapPin, Phone, Package, Calendar, Droplets, Edit2, X, CheckCircle2,
   Mail, Settings, ShoppingBag, ArrowRight, Clock, ChevronRight, User as UserIcon,
-  LogOut, Star, RefreshCcw
+  LogOut, Star, RefreshCcw, FileText, Download, Receipt
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { generateInvoice } from "@/utils/pdf-generator";
 
 const PRODUCTS = [
   { id: "can-20l", name: "20L Water Can", price: 60 },
@@ -23,6 +24,7 @@ export default function ProfilePage() {
   const router = useRouter();
 
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<Order | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -38,11 +40,11 @@ export default function ProfilePage() {
       router.push("/signin");
     }
     if (user) {
-      setProfileData({ 
-        name: user.name || "", 
-        email: user.email || "", 
-        phone: user.phone || "", 
-        address: user.address || "" 
+      setProfileData({
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        address: user.address || ""
       });
     }
   }, [user, isLoading, router]);
@@ -212,7 +214,7 @@ export default function ProfilePage() {
                               #{order.id.slice(-8).toUpperCase()}
                             </span>
                             <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600' :
-                                order.status === 'Confirmed' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
+                              order.status === 'Confirmed' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
                               }`}>
                               {order.status}
                             </div>
@@ -253,19 +255,19 @@ export default function ProfilePage() {
 
                         <div className="flex flex-row md:flex-col justify-end gap-2 border-t md:border-t-0 md:border-l border-slate-50 pt-6 md:pt-0 md:pl-6 shrink-0">
                           <button
+                            onClick={() => setViewingInvoice(order)}
+                            className="flex-1 md:flex-none px-10 py-4 bg-indigo-600 text-white hover:bg-indigo-700 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-100"
+                          >
+                            <FileText size={14} /> View Invoice
+                          </button>
+                          <button
                             onClick={() => handleEditClick(order)}
                             disabled={order.status !== 'Pending'}
                             className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${order.status === 'Pending' ? 'bg-slate-900 text-white hover:bg-blue-600' : 'bg-slate-50 text-slate-300 cursor-not-allowed'
                               }`}
                           >
-                            <Edit2 size={14} /> Edit
+                            <Edit2 size={14} /> Edit Order
                           </button>
-                          <Link
-                            href="/order"
-                            className="flex-1 md:flex-none px-6 py-3 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
-                          >
-                            <RefreshCcw size={14} /> Reorder
-                          </Link>
                         </div>
                       </div>
                     </motion.div>
@@ -474,8 +476,8 @@ export default function ProfilePage() {
                   <div className="text-xl font-black text-slate-900 font-syne">
                     Total: ₹{(editingOrder.items || []).reduce((acc, item) => acc + (item.price * item.quantity), 0)}
                   </div>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={isUpdating}
                     className="btn-primary px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
@@ -483,6 +485,125 @@ export default function ProfilePage() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {viewingInvoice && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onClick={() => setViewingInvoice(null)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="relative bg-white rounded-[3.5rem] shadow-2xl w-full max-w-2xl overflow-hidden">
+              <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                <div>
+                  <h2 className="text-3xl font-black text-slate-900 font-syne mb-1">Official Invoice</h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Digital Record: #{viewingInvoice.id.slice(-8).toUpperCase()}</p>
+                </div>
+                <button onClick={() => setViewingInvoice(null)} className="p-4 bg-white rounded-3xl text-slate-400 hover:text-slate-600 shadow-sm border border-slate-100 transition-all hover:scale-105"><X size={24} /></button>
+              </div>
+
+              <div className="p-10 space-y-10 max-h-[75vh] overflow-y-auto">
+                {/* Header Info */}
+                <div className="flex justify-between items-start">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100"><Droplets size={20} /></div>
+                      <div>
+                        <span className="text-xl font-black text-slate-900 font-syne block">AS AGENCIES</span>
+                        <span className="text-[10px] text-cyan-500 font-bold uppercase tracking-tight">Premium Hydration Partner</span>
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                      98, Aqua Tower, Industrial Area<br />
+                      support@asagencies.com<br />
+                      +91 98765 43210
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`inline-flex px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] mb-4 ${
+                      viewingInvoice.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
+                    }`}>
+                      {viewingInvoice.paymentStatus}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Issue Date</div>
+                    <div className="text-sm font-bold text-slate-900">{new Date(viewingInvoice.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                  </div>
+                </div>
+
+                {/* Billing Details */}
+                <div className="grid grid-cols-2 gap-8 py-8 border-y border-slate-50">
+                  <div>
+                    <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-3">Billed To</div>
+                    <div className="font-bold text-slate-900">{viewingInvoice.userName || user.name}</div>
+                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed max-w-[200px]">{viewingInvoice.address}</div>
+                    <div className="text-[11px] text-slate-500 mt-1">{viewingInvoice.phone}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-3">Delivery Context</div>
+                    <div className="text-[11px] text-slate-500 leading-relaxed">
+                      Status: <span className="text-slate-900 font-bold">{viewingInvoice.status}</span><br />
+                      Landmark: <span className="text-slate-900 font-bold">{viewingInvoice.landmark || "N/A"}</span><br />
+                      Type: <span className="text-slate-900 font-bold">{viewingInvoice.paymentMethod || "Direct"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Items Table */}
+                <div className="overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                        <th className="px-2 py-4 text-left">Product Description</th>
+                        <th className="px-2 py-4 text-center">Qty</th>
+                        <th className="px-2 py-4 text-right">Unit Price</th>
+                        <th className="px-2 py-4 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {viewingInvoice.items?.map((item, idx) => (
+                        <tr key={idx} className="text-sm">
+                          <td className="px-2 py-5 font-bold text-slate-700">{item.name}</td>
+                          <td className="px-2 py-5 text-center font-bold text-slate-400">{item.quantity}</td>
+                          <td className="px-2 py-5 text-right font-bold text-slate-400">₹{item.price}</td>
+                          <td className="px-2 py-5 text-right font-black text-slate-900">₹{item.price * item.quantity}</td>
+                        </tr>
+                      ))}
+                      {!viewingInvoice.items?.length && (
+                        <tr className="text-sm">
+                          <td className="px-2 py-5 font-bold text-slate-700">20L Water Can</td>
+                          <td className="px-2 py-5 text-center font-bold text-slate-400">{viewingInvoice.cans || 1}</td>
+                          <td className="px-2 py-5 text-right font-bold text-slate-400">₹60</td>
+                          <td className="px-2 py-5 text-right font-black text-slate-900">₹{viewingInvoice.total}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Totals Section */}
+                <div className="flex justify-between items-center pt-6">
+                  <button 
+                    onClick={() => generateInvoice(viewingInvoice)}
+                    className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 group"
+                  >
+                    <Download size={16} className="group-hover:translate-y-0.5 transition-transform" /> Save PDF Copy
+                  </button>
+                  <div className="w-64 space-y-3">
+                    <div className="flex justify-between text-[11px] font-bold text-slate-400">
+                      <span>Service Charge</span>
+                      <span>₹0.00</span>
+                    </div>
+                    <div className="flex justify-between text-2xl font-black text-slate-900 font-syne pt-4 border-t-2 border-slate-900">
+                      <span>Total Amount</span>
+                      <span className="text-indigo-600">₹{viewingInvoice.total}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Generated by AS Agencies Digital Billing System</p>
+                  <p className="text-[9px] text-slate-400">This is a valid digital bill for your records. No physical signature is required.</p>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

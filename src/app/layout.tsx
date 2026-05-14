@@ -7,16 +7,18 @@ import { Navbar } from "@/components/Navbar";
 const syne = Syne({
   subsets: ["latin"],
   variable: "--font-syne",
+  display: 'swap',
 });
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-dm-sans",
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "AquaDrop | Pure Water Delivered Fresh",
-  description: "20L mineral water cans delivered fresh to your door in Pezhummoodu, TVM, Kerala. Fast delivery, certified quality, and eco-friendly service.",
+  title: "AS AGENCIES | Premium Hydration Partner",
+  description: "Professional mineral water delivery services. Fast, certified quality, and reliable hydration solutions for your home and office.",
 };
 
 import { Toaster } from "sonner";

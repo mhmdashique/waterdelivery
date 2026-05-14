@@ -65,16 +65,52 @@ interface AuthContextType {
   allUsers: User[];
   notifications: AppNotification[];
   unreadCount: number;
-  signin: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  signup: (userData: Omit<User, "id" | "role">, password: string) => Promise<{ success: boolean; message: string }>;
+  signin: (
+    email: string,
+    password: string,
+  ) => Promise<{ success: boolean; message: string }>;
+  signup: (
+    userData: Omit<User, "id" | "role">,
+    password: string,
+  ) => Promise<{ success: boolean; message: string }>;
   signout: () => Promise<void>;
-  placeOrder: (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }) => Promise<boolean>;
-  createManualOrder: (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => Promise<void>;
+  placeOrder: (
+    orderData: Omit<
+      Order,
+      | "id"
+      | "userEmail"
+      | "userName"
+      | "status"
+      | "createdAt"
+      | "paymentStatus"
+      | "paymentMethod"
+      | "cansReturned"
+    > & { paymentMethod?: PaymentMethod },
+  ) => Promise<boolean>;
+  createManualOrder: (
+    orderData: Omit<
+      Order,
+      | "id"
+      | "status"
+      | "createdAt"
+      | "paymentStatus"
+      | "paymentMethod"
+      | "cansReturned"
+    > & {
+      paymentStatus?: PaymentStatus;
+      paymentMethod?: PaymentMethod;
+      cansReturned?: number;
+    },
+  ) => Promise<void>;
   updateOrder: (orderId: string, orderData: Partial<Order>) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
   updateUserProfile: (userData: Partial<User>) => Promise<boolean>;
-  resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
-  updatePassword: (password: string) => Promise<{ success: boolean; message: string }>;
+  resetPassword: (
+    email: string,
+  ) => Promise<{ success: boolean; message: string }>;
+  updatePassword: (
+    password: string,
+  ) => Promise<{ success: boolean; message: string }>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   refreshData: () => Promise<void>;
   markNotificationRead: (id: string) => void;
@@ -92,35 +128,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const profileFetchLock = React.useRef<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     // Check for auth errors in URL (e.g., from expired links)
     const params = new URLSearchParams(window.location.search);
-    const error = params.get('error_description');
+    const error = params.get("error_description");
     if (error) {
-      toast.error(error);
-      // Clean up the URL
+      toast.error(error.replace(/\+/g, " "));
       const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
+      window.history.replaceState({}, "", newUrl);
     }
 
-    const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await fetchUserProfile(session.user.id);
-      } else {
-        setIsLoading(false);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+      console.log(`[AuthContext] Auth Event: ${event}`);
+      
+      if (event === "PASSWORD_RECOVERY") {
+        router.push("/reset-password");
+        return;
       }
-    };
 
-    initializeAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
       if (session?.user) {
+        // Only fetch if the user changed or if we haven't fetched yet
+        if (profileFetchLock.current === session.user.id && user) return;
+        profileFetchLock.current = session.user.id;
+        
         await fetchUserProfile(session.user.id);
       } else {
+        profileFetchLock.current = null;
         setUser(null);
         setOrders([]);
         setIsLoading(false);
@@ -128,7 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [router, user]);
 
   const fetchUserProfile = async (userId: string) => {
     if (!userId) {
@@ -139,25 +178,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           // Profile not found, this can happen immediately after signup
           // before the database trigger has finished.
-          console.warn("Profile not found for user, will be created by trigger or on first update.");
+          console.warn(
+            "Profile not found for user, will be created by trigger or on first update.",
+          );
 
           // Optional: Fetch user metadata as a temporary fallback
-          const { data: { user: authUser } } = await supabase.auth.getUser();
+          const {
+            data: { user: authUser },
+          } = await supabase.auth.getUser();
           if (authUser) {
             setUser({
               id: authUser.id,
-              name: authUser.user_metadata?.name || 'New User',
-              email: authUser.email || '',
-              role: 'user',
+              name: authUser.user_metadata?.name || "New User",
+              email: authUser.email || "",
+              role: "user",
               address: authUser.user_metadata?.address,
               phone: authUser.user_metadata?.phone,
             });
@@ -180,18 +223,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Reduce loading time by fetching data in parallel
         const fetchTasks = [fetchOrders(userData)];
-        if (userData.role === 'admin') {
+        if (userData.role === "admin") {
           fetchTasks.push(fetchAllData());
         }
         await Promise.all(fetchTasks);
       }
     } catch (error: any) {
-      console.error("Error in fetchUserProfile workflow:", {
-        message: error?.message || "Unknown error",
-        details: error?.details || "",
-        hint: error?.hint || "",
-        code: error?.code || "",
-        full: error
+      console.error("[AuthContext] fetchUserProfile critical failure:", {
+        message: error?.message || "Internal workflow error",
+        code: error?.code || "UNKNOWN_CODE",
+        details: error?.details || "No further details",
+        full: JSON.stringify(error) === "{}" ? error.toString() : error
       });
     } finally {
       setIsLoading(false);
@@ -202,8 +244,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       // Fetch orders and items separately but in parallel for safety and speed
       const [ordersRes, itemsRes] = await Promise.all([
-        supabase.from('orders').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
-        supabase.from('order_items').select('*')
+        supabase
+          .from("orders")
+          .select("*")
+          .eq("user_id", currentUser.id)
+          .order("created_at", { ascending: false }),
+        supabase.from("order_items").select("*"),
       ]);
 
       if (ordersRes.error) throw ordersRes.error;
@@ -220,7 +266,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               id: i.product_id || i.id,
               name: i.name || "Product",
               quantity: Number(i.quantity || 0),
-              price: Number(i.price || 0)
+              price: Number(i.price || 0),
             })),
             address: o.address,
             landmark: o.landmark,
@@ -242,7 +288,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         message: error?.message || "Unknown error",
         details: error?.details || "",
         code: error?.code || "",
-        full: error
+        full: error,
       });
     }
   };
@@ -251,9 +297,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       // Fetch everything in parallel independently to avoid relationship issues
       const [ordersResult, itemsResult, usersResult] = await Promise.all([
-        supabase.from('orders').select('*').order('created_at', { ascending: false }),
-        supabase.from('order_items').select('*'),
-        supabase.from('profiles').select('*')
+        supabase
+          .from("orders")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase.from("order_items").select("*"),
+        supabase.from("profiles").select("*"),
       ]);
 
       if (ordersResult.error) throw ordersResult.error;
@@ -272,7 +321,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               id: i.product_id || i.id,
               name: i.name || "Product",
               quantity: Math.max(1, Number(i.quantity || 0)),
-              price: Number(i.price || 0)
+              price: Number(i.price || 0),
             })),
             address: o.address || "No Address",
             landmark: o.landmark,
@@ -281,7 +330,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             instructions: o.instructions,
             status: (o.status as OrderStatus) || "Pending",
             paymentStatus: (o.payment_status as PaymentStatus) || "Unpaid",
-            paymentMethod: (o.payment_method as PaymentMethod) || "Cash on Delivery",
+            paymentMethod:
+              (o.payment_method as PaymentMethod) || "Cash on Delivery",
             total: Number(o.total || 0),
             cansReturned: Number(o.cans_returned || 0),
             createdAt: o.created_at,
@@ -291,14 +341,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (usersResult.data) {
-        setAllUsers(usersResult.data.map((u: any) => ({
-          id: u.id,
-          name: u.name || "Unknown",
-          email: u.email || "",
-          role: (u.role as UserRole) || "user",
-          address: u.address,
-          phone: u.phone
-        })));
+        setAllUsers(
+          usersResult.data.map((u: any) => ({
+            id: u.id,
+            name: u.name || "Unknown",
+            email: u.email || "",
+            role: (u.role as UserRole) || "user",
+            address: u.address,
+            phone: u.phone,
+          })),
+        );
       }
     } catch (error: any) {
       console.error("Error in fetchAllData workflow:", {
@@ -306,18 +358,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         details: error?.details || "",
         hint: error?.hint || "",
         code: error?.code || "",
-        full: error
+        full: error,
       });
     }
   };
 
   const signin = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) return { success: false, message: error.message };
     return { success: true, message: "Signed in successfully" };
   };
 
-  const signup = async (userData: Omit<User, "id" | "role">, password: string) => {
+  const signup = async (
+    userData: Omit<User, "id" | "role">,
+    password: string,
+  ) => {
     const { error } = await supabase.auth.signUp({
       email: userData.email,
       password,
@@ -326,20 +384,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           name: userData.name,
           address: userData.address,
           phone: userData.phone,
-        }
-      }
+        },
+      },
     });
 
     if (error) {
       if (error.message.toLowerCase().includes("rate limit exceeded")) {
         return {
           success: false,
-          message: "Email rate limit exceeded. Please wait a few minutes or disable 'Email Confirmation' in your Supabase Auth settings for development."
+          message:
+            "Email rate limit exceeded. Please wait a few minutes or disable 'Email Confirmation' in your Supabase Auth settings for development.",
         };
       }
       return { success: false, message: error.message };
     }
-    return { success: true, message: "Account created successfully. Please check your email for verification." };
+    return {
+      success: true,
+      message:
+        "Account created successfully. Please check your email for verification.",
+    };
   };
 
   const signout = async () => {
@@ -360,106 +423,177 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const placeOrder = async (orderData: Omit<Order, "id" | "userEmail" | "userName" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentMethod?: PaymentMethod }): Promise<boolean> => {
-    if (!user) return false;
+  const placeOrder = async (
+    orderData: Omit<
+      Order,
+      | "id"
+      | "userEmail"
+      | "userName"
+      | "status"
+      | "createdAt"
+      | "paymentStatus"
+      | "paymentMethod"
+      | "cansReturned"
+    > & { paymentMethod?: PaymentMethod },
+  ): Promise<boolean> => {
+    if (!user) {
+      toast.error("You must be signed in to place an order.");
+      return false;
+    }
 
-    const orderId = `ORD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    // Generate ID: FirstLetterOfDayDDMM-Year-Suffix
+    const now = new Date();
+    const dayLetter = now.toLocaleDateString('en-US', { weekday: 'long' })[0].toUpperCase();
+    const dd = now.getDate().toString().padStart(2, '0');
+    const mm = (now.getMonth() + 1).toString().padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const suffix = Math.random().toString(36).substr(2, 3).toUpperCase();
+    const orderId = `${dayLetter}${dd}${mm}-${yyyy}-${suffix}`;
+    
+    // Progress Toast
+    const tid = toast.loading("Connecting to delivery network...");
 
-    const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert({
-      id: orderId,
-      user_id: user.id,
-      user_name: user.name || user.email.split('@')[0],
-      address: orderData.address,
-      phone: orderData.phone,
-      delivery_date: orderData.date,
-      instructions: orderData.instructions,
-      payment_method: orderData.paymentMethod || "Cash on Delivery",
-      total: orderData.total,
-      ...(orderData.landmark ? { landmark: orderData.landmark } : {}),
-    }).select().single();
+    try {
+      // Helper for timeout
+      const withTimeout = async (promise: Promise<any>, ms: number = 10000) => {
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Request timed out. Please check your connection.")), ms));
+        return Promise.race([promise, timeout]);
+      };
 
-    if (orderError) {
-      console.error("Order insertion error:", orderError);
-      toast.error("Failed to place order: " + orderError.message);
-      if (orderError.message.includes("landmark")) {
-        toast.info("Note: The 'landmark' column might be missing in your database. Please run the SQL migration.");
+      // 1. Insert Order
+      toast.loading("Registering order header...", { id: tid });
+      const { error: orderError } = await withTimeout(
+        supabase.from("orders").insert({
+          id: orderId,
+          user_id: user.id,
+          user_name: user.name || user.email.split("@")[0],
+          address: orderData.address,
+          phone: orderData.phone,
+          delivery_date: orderData.date,
+          instructions: orderData.instructions,
+          payment_method: orderData.paymentMethod || "Cash on Delivery",
+          total: Number(orderData.total),
+          landmark: orderData.landmark || null,
+        })
+      );
+
+      if (orderError) throw orderError;
+
+      // 2. Insert Items
+      toast.loading("Securing order items...", { id: tid });
+      const { error: itemsError } = await withTimeout(
+        supabase.from("order_items").insert(
+          orderData.items.map((item) => ({
+            order_id: orderId,
+            product_id: item.id,
+            name: item.name,
+            quantity: Number(item.quantity),
+            price: Number(item.price),
+          }))
+        )
+      );
+
+      if (itemsError) {
+        console.error("Items insertion error:", itemsError);
+        toast.warning("Order partially created. Please refresh.", { id: tid });
+      } else {
+        toast.success("Order confirmed successfully!", { id: tid });
       }
+
+      // Trigger background refresh
+      fetchOrders(user).catch(() => {});
+      if (user?.role === "admin") fetchAllData().catch(() => {});
+      
+      return true;
+    } catch (err: any) {
+      console.error("[placeOrder] Critical error:", err);
+      toast.error(err.message || "An unexpected error occurred while placing order.", { id: tid });
       return false;
     }
-
-    if (!insertedOrder) {
-      toast.error("Order placed, but verification failed. Please check your orders.");
-      return false;
-    }
-
-    const realOrderId = insertedOrder.id;
-
-    const { error: itemsError } = await supabase.from('order_items').insert(
-      orderData.items.map(item => ({
-        order_id: realOrderId,
-        product_id: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price
-      }))
-    );
-
-    if (itemsError) {
-      console.error("Error inserting items:", itemsError);
-    }
-
-    toast.success("Order placed successfully!");
-    await fetchOrders(user);
-    if (user?.role === 'admin') await fetchAllData();
-    return true;
   };
 
-  const createManualOrder = async (orderData: Omit<Order, "id" | "status" | "createdAt" | "paymentStatus" | "paymentMethod" | "cansReturned"> & { paymentStatus?: PaymentStatus, paymentMethod?: PaymentMethod, cansReturned?: number }) => {
+  const createManualOrder = async (
+    orderData: Omit<
+      Order,
+      | "id"
+      | "status"
+      | "createdAt"
+      | "paymentStatus"
+      | "paymentMethod"
+      | "cansReturned"
+    > & {
+      paymentStatus?: PaymentStatus;
+      paymentMethod?: PaymentMethod;
+      cansReturned?: number;
+    },
+  ) => {
     if (!user) return;
 
-    // Implementation similar to placeOrder but with explicit user details and status
-    const orderId = `MAN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    // Generate ID: DayLetterDDMM-Year-MSuffix
+    const now = new Date();
+    const dayLetter = now.toLocaleDateString('en-US', { weekday: 'long' })[0].toUpperCase();
+    const dd = now.getDate().toString().padStart(2, '0');
+    const mm = (now.getMonth() + 1).toString().padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const suffix = Math.random().toString(36).substr(2, 3).toUpperCase();
+    const orderId = `${dayLetter}${dd}${mm}-${yyyy}-M${suffix}`;
 
-    const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert({
-      id: orderId,
-      user_id: user.id, // Associate manual order with the admin creator
-      user_name: orderData.userName,
-      address: orderData.address,
-      landmark: orderData.landmark,
-      phone: orderData.phone,
-      delivery_date: orderData.date,
-      instructions: orderData.instructions,
-      payment_status: orderData.paymentStatus || 'Unpaid',
-      payment_method: orderData.paymentMethod || 'Cash on Delivery',
-      total: orderData.total,
-      cans_returned: orderData.cansReturned || 0,
-      ...(orderData.landmark ? { landmark: orderData.landmark } : {}),
-    }).select().single();
+    const tid = toast.loading("Initializing manual dispatch...");
 
-    if (orderError) {
-      toast.error("Manual order failed: " + orderError.message);
-      return;
+    try {
+      const withTimeout = async (promise: Promise<any>, ms: number = 10000) => {
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Request timed out.")), ms));
+        return Promise.race([promise, timeout]);
+      };
+
+      // 1. Insert Order
+      toast.loading("Saving manifest header...", { id: tid });
+      const { error: orderError } = await withTimeout(
+        supabase.from("orders").insert({
+          id: orderId,
+          user_id: user.id,
+          user_name: orderData.userName,
+          address: orderData.address,
+          landmark: orderData.landmark || null,
+          phone: orderData.phone,
+          delivery_date: orderData.date,
+          instructions: orderData.instructions,
+          payment_status: orderData.paymentStatus || "Unpaid",
+          payment_method: orderData.paymentMethod || "Cash on Delivery",
+          total: Number(orderData.total),
+          cans_returned: Number(orderData.cansReturned || 0),
+        })
+      );
+
+      if (orderError) throw orderError;
+
+      // 2. Insert Items
+      toast.loading("Syncing item records...", { id: tid });
+      const { error: itemsError } = await withTimeout(
+        supabase.from("order_items").insert(
+          orderData.items.map((item) => ({
+            order_id: orderId,
+            product_id: item.id,
+            name: item.name,
+            quantity: Number(item.quantity),
+            price: Number(item.price),
+          }))
+        )
+      );
+
+      if (itemsError) {
+        console.error("Manual order items error:", itemsError);
+        toast.warning("Order header saved, but items failed. Please check.", { id: tid });
+      } else {
+        toast.success("Manual order dispatched successfully!", { id: tid });
+      }
+
+      // Trigger background refresh
+      if (user?.role === "admin") fetchAllData().catch(() => {});
+    } catch (err: any) {
+      console.error("[createManualOrder] Error:", err);
+      toast.error(err.message || "Manual order failed.", { id: tid });
     }
-
-    if (!insertedOrder) {
-      toast.error("Order created, but items could not be added. Please refresh.");
-      return;
-    }
-
-    const realOrderId = insertedOrder.id;
-
-    await supabase.from('order_items').insert(
-      orderData.items.map(item => ({
-        order_id: realOrderId,
-        product_id: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price
-      }))
-    );
-
-    toast.success("Manual order created!");
-    if (user?.role === 'admin') await fetchAllData();
   };
 
   const updateOrder = async (orderId: string, orderData: Partial<Order>) => {
@@ -470,23 +604,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const payload: any = {};
     if (orderData.status !== undefined) payload.status = orderData.status;
-    if (orderData.paymentStatus !== undefined) payload.payment_status = orderData.paymentStatus;
-    if (orderData.cansReturned !== undefined) payload.cans_returned = orderData.cansReturned;
+    if (orderData.paymentStatus !== undefined)
+      payload.payment_status = orderData.paymentStatus;
+    if (orderData.cansReturned !== undefined)
+      payload.cans_returned = orderData.cansReturned;
     if (orderData.address !== undefined) payload.address = orderData.address;
     if (orderData.phone !== undefined) payload.phone = orderData.phone;
     if (orderData.date !== undefined) payload.delivery_date = orderData.date;
     if (orderData.total !== undefined) payload.total = orderData.total;
-    if (orderData.userName !== undefined) payload.user_name = orderData.userName;
+    if (orderData.userName !== undefined)
+      payload.user_name = orderData.userName;
     if (orderData.landmark) payload.landmark = orderData.landmark;
-    if (orderData.instructions !== undefined) payload.instructions = orderData.instructions;
+    if (orderData.instructions !== undefined)
+      payload.instructions = orderData.instructions;
 
     try {
       // 1. Update the main order
       if (Object.keys(payload).length > 0) {
         const { error } = await supabase
-          .from('orders')
+          .from("orders")
           .update(payload)
-          .eq('id', orderId);
+          .eq("id", orderId);
         if (error) throw error;
       }
 
@@ -494,23 +632,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (orderData.items && orderData.items.length > 0) {
         // Delete existing items
         const { error: deleteError } = await supabase
-          .from('order_items')
+          .from("order_items")
           .delete()
-          .eq('order_id', orderId);
+          .eq("order_id", orderId);
 
         if (deleteError) throw deleteError;
 
         // Insert new items
         const { error: insertError } = await supabase
-          .from('order_items')
+          .from("order_items")
           .insert(
-            orderData.items.map(item => ({
+            orderData.items.map((item) => ({
               order_id: orderId,
               product_id: item.id,
               name: item.name,
               quantity: item.quantity,
-              price: item.price
-            }))
+              price: item.price,
+            })),
           );
 
         if (insertError) throw insertError;
@@ -519,7 +657,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       toast.success("Order updated successfully!");
 
       // Force immediate refresh
-      if (user?.role === 'admin') {
+      if (user?.role === "admin") {
         await fetchAllData();
       } else if (user) {
         await fetchOrders(user);
@@ -533,15 +671,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const deleteOrder = async (orderId: string) => {
     try {
       // 1. Delete items first (mandatory if no ON DELETE CASCADE)
-      const { error: itemsError } = await supabase.from('order_items').delete().eq('order_id', orderId);
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .delete()
+        .eq("order_id", orderId);
       if (itemsError) throw itemsError;
 
       // 2. Delete the order
-      const { error: orderError } = await supabase.from('orders').delete().eq('id', orderId);
+      const { error: orderError } = await supabase
+        .from("orders")
+        .delete()
+        .eq("id", orderId);
       if (orderError) throw orderError;
 
       toast.success("Order deleted");
-      if (user?.role === 'admin') await fetchAllData();
+      if (user?.role === "admin") await fetchAllData();
       else if (user) await fetchOrders(user);
     } catch (error: any) {
       console.error("Delete failed:", error);
@@ -549,13 +693,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const updateUserProfile = async (userData: Partial<User>): Promise<boolean> => {
+  const updateUserProfile = async (
+    userData: Partial<User>,
+  ): Promise<boolean> => {
     if (!user) return false;
-    const { error } = await supabase.from('profiles').update({
-      name: userData.name,
-      address: userData.address,
-      phone: userData.phone,
-    }).eq('id', user.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        name: userData.name,
+        address: userData.address,
+        phone: userData.phone,
+      })
+      .eq("id", user.id);
 
     if (error) {
       toast.error("Profile update failed: " + error.message);
@@ -567,17 +716,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) return { success: false, message: error.message };
-    return { success: true, message: "Password reset email sent!" };
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) {
+        console.error("Supabase resetPasswordForEmail error:", error);
+        return { success: false, message: error.message };
+      }
+      return { success: true, message: "Password reset email sent!" };
+    } catch (err: any) {
+      console.error("Supabase resetPasswordForEmail threw:", err);
+      return {
+        success: false,
+        message: err?.message || "Failed to send reset email",
+      };
+    }
   };
 
   const updatePassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) return { success: false, message: error.message };
-    return { success: true, message: "Password updated successfully!" };
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        console.error("Supabase updateUser (password) error:", error);
+        return { success: false, message: error.message };
+      }
+      return { success: true, message: "Password updated successfully!" };
+    } catch (err: any) {
+      console.error("Supabase updateUser (password) threw:", err);
+      return {
+        success: false,
+        message: err?.message || "Failed to update password",
+      };
+    }
   };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
@@ -586,11 +757,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const markNotificationRead = (id: string) => {
     // Implement if notifications are in DB
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
   };
 
   const markAllNotificationsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   return (
@@ -601,7 +774,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         allOrders,
         allUsers,
         notifications,
-        unreadCount: notifications.filter(n => !n.read).length,
+        unreadCount: notifications.filter((n) => !n.read).length,
         signin,
         signup,
         signout,
