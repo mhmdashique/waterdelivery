@@ -18,7 +18,13 @@ export const createClient = () => {
     );
   }
 
-  const client = createBrowserClient(supabaseUrl, supabaseAnonKey);
+  const client = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    }
+  });
 
 
   if (typeof window !== 'undefined') {

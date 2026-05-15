@@ -546,7 +546,7 @@ export default function AdminDashboard() {
               <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
                 <div>
                   <h2 className="text-3xl font-black text-slate-900 font-syne mb-1">Receipt Summary</h2>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Transaction Verified by AquaAdmin</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Transaction Verified by Administrator</p>
                 </div>
                 <button onClick={() => setViewingOrder(null)} className="p-4 bg-white rounded-3xl text-slate-400 hover:text-slate-600 shadow-sm border border-slate-100 transition-all hover:scale-110"><X size={24} /></button>
               </div>
@@ -658,14 +658,11 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Dispatch Endpoint (Address)</label>
-                  <textarea rows={2} required value={(editingOrder ? editingOrder.address : manualOrder.address) || ""} onChange={(e) => editingOrder ? setEditingOrder({ ...editingOrder, address: e.target.value }) : setManualOrder({ ...manualOrder, address: e.target.value })} className="w-full bg-slate-50 border-none rounded-[1.5rem] p-5 font-bold text-slate-900 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all resize-none" placeholder="Full delivery address" />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Strategic Landmark</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Consignee Landmark</label>
                   <input type="text" value={(editingOrder ? editingOrder.landmark : manualOrder.landmark) || ""} onChange={(e) => editingOrder ? setEditingOrder({ ...editingOrder, landmark: e.target.value }) : setManualOrder({ ...manualOrder, landmark: e.target.value })} className="w-full bg-slate-50 border-none rounded-[1.5rem] p-5 font-bold text-slate-900 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all" placeholder="e.g. Near Blue Mall" />
                 </div>
+
+
 
                 <div className="space-y-6">
                   <div className="flex justify-between items-center ml-4">

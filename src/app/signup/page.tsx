@@ -64,7 +64,7 @@ export default function SignUpPage() {
           >
             <Droplets size={26} className="text-white" />
           </div>
-          <h1 className="text-3xl font-bold mb-2 text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>Join AquaDrop</h1>
+          <h1 className="text-3xl font-bold mb-2 text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>Join AS AGENCIES</h1>
           <p className="text-slate-500 text-sm">Start your fresh water delivery today</p>
         </div>
 

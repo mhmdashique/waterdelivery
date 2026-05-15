@@ -142,7 +142,7 @@ export default function LandingPage() {
   ];
 
   const features = [
-    { icon: <Clock size={22} />, title: "2-Hour Delivery", desc: "Lightning-fast delivery across Pezhummoodu, TVM. Order before 4 PM for same-day delivery." },
+    { icon: <Clock size={22} />, title: "2-Hour Delivery", desc: "Lightning-fast delivery across Aryanad & Pezhummoodu. Order before 4 PM for same-day delivery." },
     { icon: <Leaf size={22} />, title: "Eco-Friendly", desc: "Reusable cans with zero single-use plastic. Good for you, great for the planet." },
     { icon: <Truck size={22} />, title: "Free Delivery", desc: "No delivery charges on orders of 3+ cans. Flat ₹10 delivery on smaller orders." },
   ];
@@ -170,7 +170,7 @@ export default function LandingPage() {
   ];
 
   const testimonials = [
-    { name: "Priya Menon", role: "Homemaker, Pezhummoodu", image: "https://images.unsplash.com/photo-1589156280159-27698a70f29e?q=80&w=200&auto=format&fit=crop", text: "AS AGENCIES has made our life so much easier. Pure water delivered right on time, every single week.", rating: 5 },
+    { name: "Priya Menon", role: "Homemaker, Aryanad", image: "https://images.unsplash.com/photo-1589156280159-27698a70f29e?q=80&w=200&auto=format&fit=crop", text: "AS AGENCIES has made our life so much easier. Pure water delivered right on time, every single week.", rating: 5 },
     { name: "Arjun Nair", role: "Software Engineer", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop", text: "The quality of water is excellent and the delivery is always within 2 hours. Highly recommend!", rating: 5 },
     { name: "Dr. Lakshmi", role: "Pediatrician", image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop", text: "I recommend AS AGENCIES to all my patients. The BIS certification gives me confidence in the water quality.", rating: 5 },
   ];
@@ -188,7 +188,7 @@ export default function LandingPage() {
               <FadeUp>
                 <div className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full mb-8 text-xs font-bold text-blue-600 tracking-wide uppercase">
                   <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                  Trusted by 100+ families in Pezhummoodu, TVM
+                  KUDUMBASREE UNIT | Aryanad, Pezhummoodu
                 </div>
               </FadeUp>
 
@@ -197,14 +197,19 @@ export default function LandingPage() {
                   Pure Water,
                   <br />
                   <span className="aqua-text">Delivered Fresh</span>
-                  <br />
-                  To Your Door
                 </h1>
               </FadeUp>
 
               <FadeUp delay={0.2}>
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/20 mb-10 group">
+                  <img src="/banner.png" alt="AS AGENCIES Official Banner" className="w-full h-auto object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-blue-600/20 to-transparent pointer-events-none" />
+                </div>
+              </FadeUp>
+
+              <FadeUp delay={0.3}>
                 <p className="text-slate-600 text-lg leading-relaxed mb-10 max-w-md">
-                  Premium mineral water for your family and office. 20L cans and bottled cases delivered across Pezhummoodu, TVM.
+                  Premium mineral water for your family and office. 20L cans and bottled cases delivered across Aryanad & Pezhummoodu.
                 </p>
               </FadeUp>
 
@@ -355,7 +360,7 @@ export default function LandingPage() {
               <h2 className="text-4xl lg:text-5xl font-bold text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>
                 Purity in <span className="aqua-text">Every Space</span>
               </h2>
-              <p className="text-slate-500 max-w-md mx-auto mt-4">AS AGENCIES is the trusted hydration partner for homes, offices, and fitness centers across TVM.</p>
+              <p className="text-slate-500 max-w-md mx-auto mt-4">AS AGENCIES is the trusted hydration partner for homes, offices, and fitness centers across Aryanad & Pezhummoodu.</p>
             </div>
           </FadeUp>
 
@@ -481,9 +486,9 @@ export default function LandingPage() {
 
                 <div className="space-y-5">
                   {[
-                    { icon: <MapPin size={18} />, label: "Address", value: "Pezhummoodu, TVM, Kerala 695001" },
-                    { icon: <Phone size={18} />, label: "Phone", value: "+91 79028 57903" },
-                    { icon: <Mail size={18} />, label: "Email", value: "hello@aquadrop.in" },
+                    { icon: <MapPin size={18} />, label: "Address", value: "PEZHUMMOODU, PALLIVETTA, ARYANAD PO" },
+                    { icon: <Phone size={18} />, label: "Phone", value: "6238641144" },
+                    { icon: <Mail size={18} />, label: "Email", value: "hello@asagencies.in" },
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-4">
                       <div
@@ -546,7 +551,7 @@ export default function LandingPage() {
                 </div>
                 <span className="font-bold text-lg text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>AS AGENCIES</span>
               </div>
-              <p className="text-sm text-slate-500 leading-relaxed max-w-xs">Premium mineral water delivery service in Pezhummoodu, TVM, Kerala. Pure water, happy families.</p>
+              <p className="text-sm text-slate-500 leading-relaxed max-w-xs">Premium mineral water delivery service in Aryanad, Pezhummoodu. Pure water, happy families.</p>
             </div>
             <div>
               <h4 className="text-xs uppercase tracking-widest font-bold text-slate-400 mb-4">Quick Links</h4>
@@ -574,7 +579,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="pt-8 text-center text-xs text-slate-400 font-medium" style={{ borderTop: "1px solid rgba(0,0,0,0.05)" }}>
-            © {new Date().getFullYear()} AS AGENCIES. All rights reserved. Made with 💧 in Pezhummoodu, TVM, Kerala.
+            © {new Date().getFullYear()} AS AGENCIES. All rights reserved. Made with 💧 in Aryanad, Pezhummoodu.
           </div>
         </div>
       </footer>

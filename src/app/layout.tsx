@@ -17,8 +17,8 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "AS AGENCIES | Premium Hydration Partner",
-  description: "Professional mineral water delivery services. Fast, certified quality, and reliable hydration solutions for your home and office.",
+  title: "AS AGENCIES | PURE WATER — PURE LIFE",
+  description: "Official Kudumbasree Unit providing premium mineral water delivery in Aryanad & Pezhummoodu. BIS Certified quality, 2-hour delivery, and trusted service.",
 };
 
 import { Toaster } from "sonner";

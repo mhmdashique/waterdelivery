@@ -142,6 +142,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       window.history.replaceState({}, "", newUrl);
     }
 
+    // Check session on mount to catch invalid refresh tokens early
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError && (
+          sessionError.message.includes("Refresh Token Not Found") || 
+          sessionError.message.includes("invalid_grant") ||
+          sessionError.status === 400
+        )) {
+          console.warn("[AuthContext] Invalid session detected, signing out...");
+          await supabase.auth.signOut();
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+        
+        if (!session) {
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error("[AuthContext] Session check exception:", err);
+        setIsLoading(false);
+      }
+    };
+
+    checkSession();
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
@@ -149,6 +176,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (event === "PASSWORD_RECOVERY") {
         router.push("/reset-password");
+        return;
+      }
+
+      if (event === "SIGNED_OUT") {
+        profileFetchLock.current = null;
+        setUser(null);
+        setOrders([]);
+        setIsLoading(false);
         return;
       }
 
@@ -192,18 +227,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           );
 
           // Optional: Fetch user metadata as a temporary fallback
-          const {
-            data: { user: authUser },
-          } = await supabase.auth.getUser();
-          if (authUser) {
-            setUser({
-              id: authUser.id,
-              name: authUser.user_metadata?.name || "New User",
-              email: authUser.email || "",
-              role: "user",
-              address: authUser.user_metadata?.address,
-              phone: authUser.user_metadata?.phone,
-            });
+          try {
+            const {
+              data: { user: authUser },
+              error: authError
+            } = await supabase.auth.getUser();
+            
+            if (authError) throw authError;
+
+            if (authUser) {
+              setUser({
+                id: authUser.id,
+                name: authUser.user_metadata?.name || "New User",
+                email: authUser.email || "",
+                role: "user",
+                address: authUser.user_metadata?.address,
+                phone: authUser.user_metadata?.phone,
+              });
+            }
+          } catch (authErr: any) {
+            console.error("[AuthContext] Auth fallback failed:", authErr.message);
+            // If we can't even get the user, we should probably be signed out
+            if (authErr.message.includes("Refresh Token Not Found")) {
+              await supabase.auth.signOut();
+            }
           }
           return;
         }

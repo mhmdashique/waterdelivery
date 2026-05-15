@@ -35,7 +35,7 @@ export const generateInvoice = (order: any) => {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("AS AGENCIES | PREMIUM HYDRATION", 20, 15);
+  doc.text("AS AGENCIES | KUDUMBASREE UNIT", 20, 15);
 
   doc.setTextColor(colors.midnight[0], colors.midnight[1], colors.midnight[2]);
   doc.setFontSize(32);
@@ -45,8 +45,8 @@ export const generateInvoice = (order: any) => {
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(colors.smoke[0], colors.smoke[1], colors.smoke[2]);
-  doc.text("98, Aqua Tower, Industrial Estate Phase II", 20, 58);
-  doc.text("Kochi, Kerala - 682001 | contact@asagencies.com", 20, 63);
+  doc.text("PEZHUMMOODU, PALLIVETTA, ARYANAD PO", 20, 58);
+  doc.text("Ph: 6238641144 | contact@asagencies.com", 20, 63);
 
   // ─── INVOICE SUMMARY BOX ───
   doc.setFillColor(colors.silver[0], colors.silver[1], colors.silver[2]);
@@ -182,6 +182,14 @@ export const generateInvoice = (order: any) => {
   doc.text("TOTAL AMOUNT", 135, finalY + 30);
   doc.text(`Rs. ${order.total.toFixed(2)}`, 190, finalY + 30, { align: "right" });
 
+  // Centered Banner Image below Totals
+  try {
+    // A4 width is 210. Image width 70. (210-70)/2 = 70.
+    doc.addImage("/banner.png", "PNG", 70, finalY + 45, 70, 35);
+  } catch (e) {
+    console.error("Failed to add banner image to PDF footer:", e);
+  }
+
   // ─── FINAL FOOTER ───
   const pageHeight = doc.internal.pageSize.height;
   doc.setDrawColor(colors.silver[0], colors.silver[1], colors.silver[2]);
@@ -190,9 +198,9 @@ export const generateInvoice = (order: any) => {
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(colors.smoke[0], colors.smoke[1], colors.smoke[2]);
-  doc.text("Thank you for choosing AS Agencies. We appreciate your continued trust.", 105, pageHeight - 20, { align: "center" });
+  doc.text("Thank you for choosing AS AGENCIES. We appreciate your continued trust.", 105, pageHeight - 20, { align: "center" });
   doc.text("This is an electronically generated document. No physical signature is required.", 105, pageHeight - 15, { align: "center" });
-  doc.text("Visit us at: www.asagencies.com", 105, pageHeight - 10, { align: "center" });
+  doc.text("Aryanad PO | Pezhummoodu | Ph: 6238641144", 105, pageHeight - 10, { align: "center" });
 
   doc.save(`AS_INVOICE_${order.id.slice(-8).toUpperCase()}.pdf`);
 };

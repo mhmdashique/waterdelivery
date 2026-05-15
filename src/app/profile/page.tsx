@@ -195,7 +195,7 @@ export default function ProfilePage() {
                       <Droplets size={32} className="text-slate-200" />
                     </div>
                     <h4 className="text-xl font-bold text-slate-900 mb-2">No orders found</h4>
-                    <p className="text-sm text-slate-400 max-w-xs mx-auto mb-8">Start your journey with AquaDrop by placing your first order.</p>
+                    <p className="text-sm text-slate-400 max-w-xs mx-auto mb-8">Start your journey with AS AGENCIES by placing your first order.</p>
                     <Link href="/order" className="btn-primary py-4 px-10">Start Hydration</Link>
                   </motion.div>
                 ) : (
@@ -513,9 +513,9 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <div className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                      98, Aqua Tower, Industrial Area<br />
-                      support@asagencies.com<br />
-                      +91 98765 43210
+                      PEZHUMMOODU, PALLIVETTA, ARYANAD PO<br />
+                      contact@asagencies.com<br />
+                      6238641144
                     </div>
                   </div>
                   <div className="text-right">
@@ -597,6 +597,10 @@ export default function ProfilePage() {
                       <span className="text-indigo-600">₹{viewingInvoice.total}</span>
                     </div>
                   </div>
+                </div>
+
+                <div className="flex justify-center py-4">
+                  <img src="/banner.png" alt="AS AGENCIES Official Banner" className="w-full max-w-lg h-auto rounded-3xl shadow-lg border border-slate-100" />
                 </div>
 
                 <div className="p-6 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">

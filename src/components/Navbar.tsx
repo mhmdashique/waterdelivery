@@ -107,7 +107,7 @@ export const Navbar = () => {
                 <Droplets size={20} className="text-white" />
               </div>
               <span className="text-xl font-bold tracking-tight text-slate-900" style={{ fontFamily: "var(--font-syne)" }}>
-                Aqua<span className="text-blue-600">Drop</span>
+                AS <span className="text-blue-600">AGENCIES</span>
               </span>
             </Link>
 
